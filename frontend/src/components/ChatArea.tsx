@@ -2,12 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useChatStore } from '../store/useChatStore';
 import type { Message } from '../store/useChatStore';
 import { useAuthStore } from '../store/useAuthStore';
+import type { User } from '../store/useAuthStore';
 import { useWebRTCStore } from '../store/useWebRTCStore';
 import { Send, Paperclip, Smile, Edit2, Trash2, CornerUpLeft, X, Video, Image, FileText, MessageSquare, ArrowLeft, CheckCheck } from 'lucide-react';
 
 export const ChatArea: React.FC = () => {
   const { 
-    messages, activeMode, activeChannelId, activeDmUserId, friends, sendMessage, sendTyping, typingUsers, setActiveDmUserId
+    messages, activeMode, activeDmUserId, friends, sendMessage, sendTyping, typingUsers, setActiveDmUserId
   } = useChatStore();
 
   const { user, token } = useAuthStore();

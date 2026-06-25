@@ -86,7 +86,9 @@ interface ChatState {
   sendTyping: (isTyping: boolean) => void;
 }
 
-const API_BASE = 'http://localhost:8080/api';
+const API_BASE = window.location.origin.includes('localhost')
+  ? 'http://localhost:8080/api'
+  : 'https://nexus-production.up.railway.app/api';
 
 export const useChatStore = create<ChatState>((set, get) => {
   let typingTimeout: any = null;
@@ -372,7 +374,11 @@ export const useChatStore = create<ChatState>((set, get) => {
       // Avoid double connection
       if (get().socket) return;
 
-      const socket = new WebSocket(`ws://localhost:8080/ws?token=${token}`);
+      const wsUrl = window.location.origin.includes('localhost')
+        ? `ws://localhost:8080/ws?token=${token}`
+        : `wss://nexus-production.up.railway.app/ws?token=${token}`;
+
+      const socket = new WebSocket(wsUrl);
 
       socket.onopen = () => {
         set({ connected: true, socket });
