@@ -5,6 +5,7 @@ import com.nexus.model.Reaction;
 import com.nexus.model.User;
 import com.nexus.service.MessageService;
 import com.nexus.service.UserService;
+import com.nexus.service.CloudinaryService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -29,13 +30,15 @@ public class MessageController {
 
     private final MessageService messageService;
     private final UserService userService;
+    private final CloudinaryService cloudinaryService;
 
     @Value("${nexus.upload.dir}")
     private String uploadDir;
 
-    public MessageController(MessageService messageService, UserService userService) {
+    public MessageController(MessageService messageService, UserService userService, CloudinaryService cloudinaryService) {
         this.messageService = messageService;
         this.userService = userService;
+        this.cloudinaryService = cloudinaryService;
     }
 
     private User getAuthenticatedUser() {
@@ -130,26 +133,10 @@ public class MessageController {
                 return ResponseEntity.badRequest().body("File is empty");
             }
 
-            // Ensure upload directory exists
-            Path uploadPath = Paths.get(uploadDir);
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
-            }
-
-            // Create unique file name
+            Map<?, ?> uploadResult = cloudinaryService.upload(file);
+            String fileUrl = (String) uploadResult.get("secure_url");
             String originalFileName = file.getOriginalFilename();
-            String extension = "";
-            if (originalFileName != null && originalFileName.contains(".")) {
-                extension = originalFileName.substring(originalFileName.lastIndexOf("."));
-            }
-            String newFileName = UUID.randomUUID().toString() + extension;
-            Path filePath = uploadPath.resolve(newFileName);
 
-            // Copy file to target path
-            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
-            // Return URL and details
-            String fileUrl = "http://localhost:8080/uploads/" + newFileName;
             Map<String, String> response = new HashMap<>();
             response.put("fileUrl", fileUrl);
             response.put("fileName", originalFileName);
@@ -157,7 +144,7 @@ public class MessageController {
 
             return ResponseEntity.ok(response);
         } catch (IOException e) {
-            return ResponseEntity.status(500).body("Could not store file. Error: " + e.getMessage());
+            return ResponseEntity.status(500).body("Could not store file on Cloudinary. Error: " + e.getMessage());
         }
     }
 }

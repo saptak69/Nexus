@@ -86,4 +86,15 @@ public class UserController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+    @GetMapping
+    public ResponseEntity<?> getAllUsers() {
+        try {
+            User current = getAuthenticatedUser();
+            List<User> users = userService.findAllExcept(current.getId());
+            return ResponseEntity.ok(users);
+        } catch (Exception e) {
+            return ResponseEntity.ok(userService.findAll());
+        }
+    }
 }

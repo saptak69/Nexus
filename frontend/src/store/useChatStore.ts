@@ -92,7 +92,7 @@ export const useChatStore = create<ChatState>((set, get) => {
   let typingTimeout: any = null;
 
   return {
-    activeMode: 'SERVER',
+    activeMode: 'DM',
     activeServerId: null,
     activeChannelId: null,
     activeDmUserId: null,
@@ -318,7 +318,7 @@ export const useChatStore = create<ChatState>((set, get) => {
       if (!token) return;
 
       try {
-        const response = await fetch(`${API_BASE}/friends`, {
+        const response = await fetch(`${API_BASE}/users`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (response.ok) {
@@ -326,7 +326,7 @@ export const useChatStore = create<ChatState>((set, get) => {
           set({ friends });
         }
       } catch (err) {
-        console.error('Error fetching friends list', err);
+        console.error('Error fetching contacts list', err);
       }
     },
 

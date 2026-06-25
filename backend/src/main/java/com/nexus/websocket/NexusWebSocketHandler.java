@@ -330,6 +330,64 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
                 if (senderSession != null && senderSession.isOpen()) {
                     sendJson(senderSession, chatEvent);
                 }
+
+                // AI Bot automated reply check
+                if (recipient.getUsername().equals("nexus_bot")) {
+                    final String userMsg = content;
+                    final String userFileUrl = fileUrl;
+                    final String userFileName = fileName;
+                    final String userFileType = fileType;
+                    new Thread(() -> {
+                        try {
+                            Thread.sleep(1000);
+                            
+                            // Send typing indicator start
+                            Map<String, Object> typingStart = new HashMap<>();
+                            typingStart.put("type", "TYPING");
+                            typingStart.put("senderId", recipient.getId());
+                            typingStart.put("senderName", recipient.getUsername());
+                            typingStart.put("isTyping", true);
+                            typingStart.put("roomId", "dm_" + recipient.getId());
+                            
+                            if (senderSession != null && senderSession.isOpen()) {
+                                sendJson(senderSession, typingStart);
+                            }
+                            
+                            Thread.sleep(1500); // simulate typing for 1.5 seconds
+                            
+                            // Send typing indicator stop
+                            Map<String, Object> typingStop = new HashMap<>();
+                            typingStop.put("type", "TYPING");
+                            typingStop.put("senderId", recipient.getId());
+                            typingStop.put("senderName", recipient.getUsername());
+                            typingStop.put("isTyping", false);
+                            typingStop.put("roomId", "dm_" + recipient.getId());
+                            
+                            if (senderSession != null && senderSession.isOpen()) {
+                                sendJson(senderSession, typingStop);
+                            }
+
+                            // Generate bot content
+                            String replyContent = "Hi! I am Nexus Bot. 🤖 I received your message: \"" + userMsg + "\". I can help you test this WhatsApp clone. Feel free to upload files using the attachment icon (📎) or test the mobile layout by resizing your window!";
+                            
+                            if (userFileUrl != null) {
+                                replyContent = "Awesome file! 📎 I received your attachment \"" + userFileName + "\" (" + userFileType + "). I can render images, audio, video, and download links directly in our chat!";
+                            }
+                            
+                            Message botSaved = messageService.saveDirectMessage(replyContent, recipient, sender, null, null, null, null);
+                            
+                            Map<String, Object> botChatEvent = new HashMap<>();
+                            botChatEvent.put("type", "CHAT_MESSAGE");
+                            botChatEvent.put("message", botSaved);
+                            
+                            if (senderSession != null && senderSession.isOpen()) {
+                                sendJson(senderSession, botChatEvent);
+                            }
+                        } catch (InterruptedException e) {
+                            // ignore
+                        }
+                    }).start();
+                }
             }
         } catch (Exception e) {
             // Log error saving message

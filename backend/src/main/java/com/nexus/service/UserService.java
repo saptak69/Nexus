@@ -99,4 +99,14 @@ public class UserService {
     public List<User> searchUsers(String query) {
         return userRepository.findByUsernameContainingIgnoreCase(query);
     }
+
+    public List<User> findAll() {
+        return userRepository.findAll();
+    }
+
+    public List<User> findAllExcept(Long userId) {
+        List<User> all = userRepository.findAll();
+        all.removeIf(u -> u.getId().equals(userId));
+        return all;
+    }
 }

@@ -1,20 +1,19 @@
 import { useEffect } from 'react';
 import { useChatStore } from '../store/useChatStore';
 import { useWebRTCStore } from '../store/useWebRTCStore';
-import { SidebarServers } from '../components/SidebarServers';
 import { SidebarChannels } from '../components/SidebarChannels';
 import { ChatArea } from '../components/ChatArea';
 import { VideoGrid } from '../components/VideoGrid';
 import { MessageSquare, Radio, Heart } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
-  const { connectSocket, disconnectSocket, fetchServers, activeChannelId, activeDmUserId, activeMode } = useChatStore();
+  const { connectSocket, disconnectSocket, fetchFriends, activeChannelId, activeDmUserId, activeMode } = useChatStore();
   const { inCall, leaveRoom, incomingCall, acceptCall, declineCall } = useWebRTCStore();
 
   useEffect(() => {
-    // Connect WebSocket and fetch joined servers list
+    // Connect WebSocket and fetch contacts list
     connectSocket();
-    fetchServers();
+    fetchFriends();
 
     return () => {
       // Disconnect socket and terminate active calls on exit
@@ -28,14 +27,17 @@ export const DashboardPage: React.FC = () => {
   return (
     <div className="flex h-screen w-full bg-[#0b0c10] text-[#e5e7eb] overflow-hidden select-none font-sans">
       
-      {/* 1. Leftmost Server Icon Sidebar */}
-      <SidebarServers />
+      {/* 1. Left Panel: WhatsApp Inbox / Contact List */}
+      <div className={`h-full shrink-0 border-r border-white/5 bg-[#13171e] ${
+        activeDmUserId !== null ? 'hidden md:flex md:w-[350px] lg:w-[400px]' : 'flex w-full md:w-[350px] lg:w-[400px]'
+      }`}>
+        <SidebarChannels />
+      </div>
 
-      {/* 2. Secondary Channel / Friend list Sidebar */}
-      <SidebarChannels />
-
-      {/* 3. Main Workspace Panel */}
-      <div className="flex-1 h-screen flex flex-col min-w-0">
+      {/* 2. Right Panel: Active Chat or Welcome Screen */}
+      <div className={`h-full flex-1 flex flex-col min-w-0 ${
+        activeDmUserId !== null ? 'flex w-full' : 'hidden md:flex md:flex-1'
+      }`}>
         {inCall ? (
           /* Render WebRTC Conference Grid if active video session is running */
           <VideoGrid />
