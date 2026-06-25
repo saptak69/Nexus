@@ -88,7 +88,7 @@ interface ChatState {
 
 const API_BASE = window.location.origin.includes('localhost')
   ? 'http://localhost:8080/api'
-  : 'https://nexus-production.up.railway.app/api';
+  : 'https://nexus-production-ce6a.up.railway.app/api';
 
 export const useChatStore = create<ChatState>((set, get) => {
   let typingTimeout: any = null;
@@ -376,7 +376,7 @@ export const useChatStore = create<ChatState>((set, get) => {
 
       const wsUrl = window.location.origin.includes('localhost')
         ? `ws://localhost:8080/ws?token=${token}`
-        : `wss://nexus-production.up.railway.app/ws?token=${token}`;
+        : `wss://nexus-production-ce6a.up.railway.app/ws?token=${token}`;
 
       const socket = new WebSocket(wsUrl);
 
