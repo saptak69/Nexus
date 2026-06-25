@@ -18,6 +18,6 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(nexusWebSocketHandler, "/ws")
-                .setAllowedOrigins("http://localhost:5173", "https://nexus-chat-nine.vercel.app");
+                .setAllowedOrigins("http://localhost:5173", "https://nexus-chat-iota-dun.vercel.app");
     }
 }
