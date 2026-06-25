@@ -25,7 +25,9 @@ interface AuthState {
   updateAvatar: (avatarUrl: string) => Promise<void>;
 }
 
-const API_BASE = 'http://localhost:8080/api';
+const API_BASE = window.location.origin.includes('localhost')
+  ? 'http://localhost:8080/api'
+  : 'https://nexus-production.up.railway.app/api';
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
