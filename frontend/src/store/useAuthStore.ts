@@ -26,8 +26,16 @@ interface AuthState {
   updateAvatar: (avatarUrl: string) => Promise<void>;
 }
 
-export const API_BASE = import.meta.env.VITE_API_URL || (window.location.origin.includes('localhost')
-  ? 'http://localhost:8080/api'
+const isLocal = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1' ||
+  window.location.hostname.startsWith('192.168.') ||
+  window.location.hostname.startsWith('10.') ||
+  window.location.hostname.startsWith('172.')
+);
+
+export const API_BASE = import.meta.env.VITE_API_URL || (isLocal
+  ? `http://${window.location.hostname}:8080/api`
   : 'https://nexus-production-ce6a.up.railway.app/api');
 
 export const useAuthStore = create<AuthState>((set, get) => ({

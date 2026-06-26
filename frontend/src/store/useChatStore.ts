@@ -372,10 +372,18 @@ export const useChatStore = create<ChatState>((set, get) => {
       // Avoid double connection
       if (get().socket) return;
 
+      const isLocal = typeof window !== 'undefined' && (
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname.startsWith('192.168.') ||
+        window.location.hostname.startsWith('10.') ||
+        window.location.hostname.startsWith('172.')
+      );
+
       const wsUrl = import.meta.env.VITE_WS_URL
         ? `${import.meta.env.VITE_WS_URL}?token=${token}`
-        : (window.location.origin.includes('localhost')
-          ? `ws://localhost:8080/ws?token=${token}`
+        : (isLocal
+          ? `ws://${window.location.hostname}:8080/ws?token=${token}`
           : `wss://nexus-production-ce6a.up.railway.app/ws?token=${token}`);
 
       const socket = new WebSocket(wsUrl);
