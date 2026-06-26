@@ -20,7 +20,8 @@ export const AuthPage: React.FC = () => {
         setErrorMsg('Please fill in all fields');
         return;
       }
-      const success = await login(username, password);
+      const sanitizedUsername = username.trim().toLowerCase();
+      const success = await login(sanitizedUsername, password);
       if (!success) {
         setErrorMsg(useAuthStore.getState().authError || 'Login failed');
       }
@@ -33,7 +34,9 @@ export const AuthPage: React.FC = () => {
         setErrorMsg('Password must be at least 6 characters long');
         return;
       }
-      const success = await register(username, email, password);
+      const sanitizedUsername = username.trim().toLowerCase();
+      const sanitizedEmail = email.trim().toLowerCase();
+      const success = await register(sanitizedUsername, sanitizedEmail, password);
       if (!success) {
         setErrorMsg(useAuthStore.getState().authError || 'Registration failed');
       }
@@ -83,6 +86,9 @@ export const AuthPage: React.FC = () => {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 className="w-full pl-10 pr-4 py-3 rounded-xl glass-input text-sm transition-all"
                 placeholder={isLogin ? 'admin' : 'saptak'}
               />
@@ -103,6 +109,9 @@ export const AuthPage: React.FC = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="w-full pl-10 pr-4 py-3 rounded-xl glass-input text-sm transition-all"
                   placeholder="saptak@nexus.com"
                 />
