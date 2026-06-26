@@ -86,6 +86,20 @@ public class DatabaseSeeder implements CommandLineRunner {
             });
         }
 
+        // Safe migration: populate missing user tags for any existing users
+        userRepository.findAll().forEach(user -> {
+            if (user.getUserTag() == null || user.getUserTag().trim().isEmpty()) {
+                String userTag;
+                do {
+                    String randomSuffix = java.util.UUID.randomUUID().toString().substring(0, 4);
+                    userTag = user.getUsername().toLowerCase().replaceAll("\\s+", "") + "_" + randomSuffix;
+                } while (userRepository.existsByUserTag(userTag));
+                user.setUserTag(userTag);
+                userRepository.save(user);
+                System.out.println("Migrated user " + user.getUsername() + " with tag: " + userTag);
+            }
+        });
+
         // Now seed nexus_ai if it doesn't exist
         if (userRepository.findByUsername("nexus_ai").isEmpty()) {
             User nexusBot = User.builder()
