@@ -58,8 +58,8 @@ public class SecurityConfig {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    // Helper method (not a @Bean) to avoid double registration as a global servlet filter
+    private CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
         // Allow main domain, all Vercel preview branches, localhost, and local network IPs for mobile testing
