@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { useAuthStore } from './useAuthStore';
+import { useAuthStore, API_BASE } from './useAuthStore';
 import type { User } from './useAuthStore';
 import { useWebRTCStore } from './useWebRTCStore';
 
@@ -86,9 +86,7 @@ interface ChatState {
   sendTyping: (isTyping: boolean) => void;
 }
 
-const API_BASE = window.location.origin.includes('localhost')
-  ? 'http://localhost:8080/api'
-  : 'https://nexus-production-ce6a.up.railway.app/api';
+
 
 export const useChatStore = create<ChatState>((set, get) => {
   let typingTimeout: any = null;
@@ -374,9 +372,11 @@ export const useChatStore = create<ChatState>((set, get) => {
       // Avoid double connection
       if (get().socket) return;
 
-      const wsUrl = window.location.origin.includes('localhost')
-        ? `ws://localhost:8080/ws?token=${token}`
-        : `wss://nexus-production-ce6a.up.railway.app/ws?token=${token}`;
+      const wsUrl = import.meta.env.VITE_WS_URL
+        ? `${import.meta.env.VITE_WS_URL}?token=${token}`
+        : (window.location.origin.includes('localhost')
+          ? `ws://localhost:8080/ws?token=${token}`
+          : `wss://nexus-production-ce6a.up.railway.app/ws?token=${token}`);
 
       const socket = new WebSocket(wsUrl);
 

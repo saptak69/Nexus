@@ -332,7 +332,7 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
                 }
 
                 // AI Bot automated reply check
-                if (recipient.getUsername().equals("nexus_bot")) {
+                if (recipient.getUsername().equals("nexus_ai")) {
                     final String userMsg = content;
                     final String userFileUrl = fileUrl;
                     final String userFileName = fileName;
@@ -368,7 +368,7 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
                             }
 
                             // Generate bot content
-                            String replyContent = "Hi! I am Nexus Bot. 🤖 I received your message: \"" + userMsg + "\". I can help you test this WhatsApp clone. Feel free to upload files using the attachment icon (📎) or test the mobile layout by resizing your window!";
+                            String replyContent = "Hi! I am Nexus AI. 🤖 I received your message: \"" + userMsg + "\". I can help you test this WhatsApp clone. Feel free to upload files using the attachment icon (📎) or test the mobile layout by resizing your window!";
                             
                             if (userFileUrl != null) {
                                 replyContent = "Awesome file! 📎 I received your attachment \"" + userFileName + "\" (" + userFileType + "). I can render images, audio, video, and download links directly in our chat!";

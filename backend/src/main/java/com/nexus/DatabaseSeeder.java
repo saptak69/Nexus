@@ -1,10 +1,11 @@
 package com.nexus;
 
 import com.nexus.model.User;
-import com.nexus.repository.UserRepository;
+import com.nexus.repository.*;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -12,55 +13,83 @@ import java.util.List;
 public class DatabaseSeeder implements CommandLineRunner {
 
     private final UserRepository userRepository;
+    private final MessageRepository messageRepository;
+    private final FriendRequestRepository friendRequestRepository;
+    private final ReactionRepository reactionRepository;
+    private final ServerRepository serverRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public DatabaseSeeder(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public DatabaseSeeder(UserRepository userRepository,
+                          MessageRepository messageRepository,
+                          FriendRequestRepository friendRequestRepository,
+                          ReactionRepository reactionRepository,
+                          ServerRepository serverRepository,
+                          PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.messageRepository = messageRepository;
+        this.friendRequestRepository = friendRequestRepository;
+        this.reactionRepository = reactionRepository;
+        this.serverRepository = serverRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
     @Override
+    @Transactional
     public void run(String... args) throws Exception {
-        if (userRepository.count() == 0) {
-            // Seed default users
-            User alice = User.builder()
-                    .username("alice")
-                    .email("alice@nexus.chat")
-                    .password(passwordEncoder.encode("password123"))
-                    .presence(User.PresenceStatus.ONLINE)
-                    .avatarUrl("https://api.dicebear.com/7.x/adventurer/svg?seed=Alice")
-                    .statusMessage("Coding away... 🚀")
-                    .build();
+        // Remove demo users if they exist in the repository to clean them up
+        List<String> demoUsernames = List.of("alice", "bob", "charlie", "maria", "nexus_bot");
+        for (String username : demoUsernames) {
+            userRepository.findByUsername(username).ifPresent(user -> {
+                try {
+                    // Remove all friend requests involving this user
+                    friendRequestRepository.findAll().forEach(fr -> {
+                        if (fr.getSender().getId().equals(user.getId()) || fr.getReceiver().getId().equals(user.getId())) {
+                            friendRequestRepository.delete(fr);
+                        }
+                    });
 
-            User bob = User.builder()
-                    .username("bob")
-                    .email("bob@nexus.chat")
-                    .password(passwordEncoder.encode("password123"))
-                    .presence(User.PresenceStatus.ONLINE)
-                    .avatarUrl("https://api.dicebear.com/7.x/adventurer/svg?seed=Bob")
-                    .statusMessage("Gym mode 🏋️‍♂️")
-                    .build();
+                    // Remove all reactions
+                    reactionRepository.deleteAll();
 
-            User charlie = User.builder()
-                    .username("charlie")
-                    .email("charlie@nexus.chat")
-                    .password(passwordEncoder.encode("password123"))
-                    .presence(User.PresenceStatus.AWAY)
-                    .avatarUrl("https://api.dicebear.com/7.x/adventurer/svg?seed=Charlie")
-                    .statusMessage("Out for lunch 🍔")
-                    .build();
+                    // Disassociate parents for all messages to avoid self-referential constraint issues
+                    messageRepository.findAll().forEach(m -> {
+                        if (m.getParentMessage() != null) {
+                            m.setParentMessage(null);
+                            messageRepository.save(m);
+                        }
+                    });
 
-            User maria = User.builder()
-                    .username("maria")
-                    .email("maria@nexus.chat")
-                    .password(passwordEncoder.encode("password123"))
-                    .presence(User.PresenceStatus.ONLINE)
-                    .avatarUrl("https://api.dicebear.com/7.x/adventurer/svg?seed=Maria")
-                    .statusMessage("Hey there! I am using Nexus Chat.")
-                    .build();
+                    // Delete messages involving this user
+                    messageRepository.findAll().forEach(m -> {
+                        if (m.getSender().getId().equals(user.getId()) || (m.getRecipient() != null && m.getRecipient().getId().equals(user.getId()))) {
+                            messageRepository.delete(m);
+                        }
+                    });
 
+                    // Remove from servers
+                    serverRepository.findAll().forEach(s -> {
+                        if (s.getMembers().contains(user)) {
+                            s.getMembers().remove(user);
+                            serverRepository.save(s);
+                        }
+                        if (s.getOwner().getId().equals(user.getId())) {
+                            serverRepository.delete(s);
+                        }
+                    });
+
+                    // Delete the user
+                    userRepository.delete(user);
+                    System.out.println("Cleaned up demo user: " + username);
+                } catch (Exception e) {
+                    System.err.println("Error removing demo user " + username + ": " + e.getMessage());
+                }
+            });
+        }
+
+        // Now seed nexus_ai if it doesn't exist
+        if (userRepository.findByUsername("nexus_ai").isEmpty()) {
             User nexusBot = User.builder()
-                    .username("nexus_bot")
+                    .username("nexus_ai")
                     .email("bot@nexus.chat")
                     .password(passwordEncoder.encode("password123"))
                     .presence(User.PresenceStatus.ONLINE)
@@ -68,8 +97,8 @@ public class DatabaseSeeder implements CommandLineRunner {
                     .statusMessage("AI Assistant 🤖")
                     .build();
 
-            userRepository.saveAll(List.of(alice, bob, charlie, maria, nexusBot));
-            System.out.println("Seeded database with Alice, Bob, Charlie, Maria, and NexusBot!");
+            userRepository.save(nexusBot);
+            System.out.println("Seeded database with nexus_ai!");
         }
     }
 }

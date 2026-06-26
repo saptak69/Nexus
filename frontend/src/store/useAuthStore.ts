@@ -25,9 +25,9 @@ interface AuthState {
   updateAvatar: (avatarUrl: string) => Promise<void>;
 }
 
-const API_BASE = window.location.origin.includes('localhost')
+export const API_BASE = import.meta.env.VITE_API_URL || (window.location.origin.includes('localhost')
   ? 'http://localhost:8080/api'
-  : 'https://nexus-production-ce6a.up.railway.app/api';
+  : 'https://nexus-production-ce6a.up.railway.app/api');
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,

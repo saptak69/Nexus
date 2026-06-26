@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useChatStore } from '../store/useChatStore';
 import type { Message } from '../store/useChatStore';
-import { useAuthStore } from '../store/useAuthStore';
+import { useAuthStore, API_BASE } from '../store/useAuthStore';
 import { Settings, LogOut, Search, MessageSquare, CheckCheck, X } from 'lucide-react';
 
 export const SidebarChannels: React.FC = () => {
@@ -31,7 +31,7 @@ export const SidebarChannels: React.FC = () => {
     if (friends.length > 0 && token) {
       friends.forEach(async (friend) => {
         try {
-          const response = await fetch(`http://localhost:8080/api/messages/dm/${friend.id}?page=0&size=1`, {
+          const response = await fetch(`${API_BASE}/messages/dm/${friend.id}?page=0&size=1`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (response.ok) {

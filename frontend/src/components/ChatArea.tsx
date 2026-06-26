@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useChatStore } from '../store/useChatStore';
 import type { Message } from '../store/useChatStore';
-import { useAuthStore } from '../store/useAuthStore';
+import { useAuthStore, API_BASE } from '../store/useAuthStore';
 import type { User } from '../store/useAuthStore';
 import { useWebRTCStore } from '../store/useWebRTCStore';
 import { Send, Paperclip, Smile, Edit2, Trash2, CornerUpLeft, X, Video, Image, FileText, MessageSquare, ArrowLeft, CheckCheck } from 'lucide-react';
 
 export const ChatArea: React.FC = () => {
   const { 
-    messages, activeMode, activeDmUserId, friends, sendMessage, sendTyping, typingUsers, setActiveDmUserId
+    messages, activeMode, activeDmUserId, friends, sendMessage, sendTyping, typingUsers, setActiveDmUserId, connected
   } = useChatStore();
 
   const { user, token } = useAuthStore();
@@ -87,7 +87,7 @@ export const ChatArea: React.FC = () => {
     formData.append('file', file);
 
     try {
-      const response = await fetch('http://localhost:8080/api/messages/upload', {
+      const response = await fetch(`${API_BASE}/messages/upload`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -120,6 +120,11 @@ export const ChatArea: React.FC = () => {
     e.preventDefault();
     if (!inputText.trim() && !attachedFile) return;
 
+    if (!connected) {
+      alert("Connection lost. Please wait while we reconnect to the chat server...");
+      return;
+    }
+
     sendMessage(inputText.trim(), {
       parentId: replyToMessage?.id,
       fileUrl: attachedFile?.url,
@@ -138,7 +143,7 @@ export const ChatArea: React.FC = () => {
   const handleEditSubmit = async (messageId: number) => {
     if (!editText.trim() || !token) return;
     try {
-      const response = await fetch(`http://localhost:8080/api/messages/${messageId}`, {
+      const response = await fetch(`${API_BASE}/messages/${messageId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -161,7 +166,7 @@ export const ChatArea: React.FC = () => {
   const handleDeleteMessage = async (messageId: number) => {
     if (!token) return;
     try {
-      const response = await fetch(`http://localhost:8080/api/messages/${messageId}`, {
+      const response = await fetch(`${API_BASE}/messages/${messageId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -178,7 +183,7 @@ export const ChatArea: React.FC = () => {
     if (!token) return;
     const method = alreadyReacted ? 'DELETE' : 'POST';
     try {
-      const response = await fetch(`http://localhost:8080/api/messages/${messageId}/react?emoji=${encodeURIComponent(emoji)}`, {
+      const response = await fetch(`${API_BASE}/messages/${messageId}/react?emoji=${encodeURIComponent(emoji)}`, {
         method,
         headers: { Authorization: `Bearer ${token}` },
       });
