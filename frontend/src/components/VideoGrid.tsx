@@ -4,7 +4,7 @@ import { useChatStore } from '../store/useChatStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { Mic, MicOff, Video, VideoOff, Monitor, PhoneOff, Hand, Volume2, Camera } from 'lucide-react';
 
-// Specialized Video Player using refs
+// Video Player with sharp corners
 const VideoPlayer: React.FC<{ stream: MediaStream; muted?: boolean; className?: string }> = ({ stream, muted = false, className }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -20,7 +20,7 @@ const VideoPlayer: React.FC<{ stream: MediaStream; muted?: boolean; className?: 
       autoPlay
       playsInline
       muted={muted}
-      className={`w-full h-full object-cover rounded-xl ${className}`}
+      className={`w-full h-full object-cover rounded-none ${className}`}
     />
   );
 };
@@ -34,11 +34,10 @@ export const VideoGrid: React.FC = () => {
   const { friends } = useChatStore();
   const { user } = useAuthStore();
 
-  // Combine participants: local user + remote users
   const participants = [
     {
       id: user?.id || 0,
-      username: user?.username || 'You',
+      username: user?.username || 'YOU',
       stream: localStream,
       isLocal: true,
       muted: micMuted,
@@ -49,22 +48,20 @@ export const VideoGrid: React.FC = () => {
       const peerId = Number(peerIdStr);
       const friend = friends.find((f) => f.id === peerId);
       
-      // Look up status in socket state (activeRoomUsers / typing, or mock for demo)
       return {
         id: peerId,
-        username: friend?.username || `Operator #${peerId}`,
+        username: friend?.username || `OPERATOR_${peerId}`,
         stream: stream,
         isLocal: false,
-        muted: false, // In simple mesh we rely on remote tracks, muted info is best sent in socket message, but default to false
+        muted: false,
         cameraOff: stream.getVideoTracks().length === 0 || !stream.getVideoTracks()[0].enabled,
-        handRaised: false, // Default
+        handRaised: false,
       };
     }),
   ];
 
   const totalParticipants = participants.length;
 
-  // Grid column sizing calculations based on participant count
   const getGridCols = () => {
     if (totalParticipants <= 1) return 'grid-cols-1 md:grid-cols-1';
     if (totalParticipants === 2) return 'grid-cols-1 md:grid-cols-2';
@@ -73,9 +70,9 @@ export const VideoGrid: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 h-screen bg-zinc-950 flex flex-col justify-between overflow-hidden relative p-4 font-sans select-none">
+    <div className="flex-1 h-screen bg-black flex flex-col justify-between overflow-hidden relative p-4 font-mono select-none border-l border-zinc-900">
       
-      {/* Participant Video Grid */}
+      {/* Participant Video Grid with stark outline containers */}
       <div className={`flex-1 grid ${getGridCols()} gap-4 items-center justify-center min-h-0`}>
         {participants.map((p) => {
           const isSpeaking = activeSpeakerId === p.id;
@@ -84,51 +81,51 @@ export const VideoGrid: React.FC = () => {
           return (
             <div
               key={p.id}
-              className={`relative w-full h-full rounded-2xl bg-zinc-900 border overflow-hidden aspect-video flex items-center justify-center transition-all duration-300 ${
+              className={`relative w-full h-full rounded-none bg-zinc-950 border overflow-hidden aspect-video flex items-center justify-center transition-all duration-75 ${
                 isSpeaking
-                  ? 'border-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.35)] z-10'
+                  ? 'border-white border-2 z-10 shadow-none'
                   : p.handRaised
-                  ? 'border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.25)]'
-                  : 'border-zinc-800'
+                  ? 'border-white border-dashed z-10 shadow-none'
+                  : 'border-zinc-900'
               }`}
             >
               
-              {/* Actual Video Track Player */}
+              {/* Video Player */}
               {p.stream && !p.cameraOff ? (
                 <VideoPlayer stream={p.stream} muted={p.isLocal} />
               ) : (
-                /* Avatar Placeholder when camera is disabled */
+                /* Monospaced Initial Placeholder */
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center font-bold text-white text-xl shadow-lg">
+                  <div className="w-14 h-14 rounded-none bg-zinc-900 border border-white/20 flex items-center justify-center font-mono font-black text-white text-lg">
                     {initials}
                   </div>
-                  <span className="text-xs text-zinc-400 font-semibold">{p.username}</span>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">{p.username}</span>
                 </div>
               )}
 
               {/* Top overlay badges (status, raise hand) */}
               <div className="absolute top-3 left-3 flex gap-1.5 z-10">
-                <span className="bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg text-[10px] text-white font-bold tracking-wide">
-                  {p.username} {p.isLocal && '(You)'}
+                <span className="bg-black border border-zinc-800 px-2 py-0.5 text-[9px] text-white font-bold tracking-wider uppercase">
+                  {p.username} {p.isLocal && '(YOU)'}
                 </span>
                 
                 {p.handRaised && (
-                  <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 backdrop-blur-md px-2 py-0.5 rounded-lg text-[10px] font-bold flex items-center gap-1 animate-bounce">
-                    <Hand className="w-3 h-3 fill-amber-400" /> Hand Raised
+                  <span className="bg-white text-black border border-white px-2 py-0.5 text-[8px] font-bold tracking-widest uppercase flex items-center gap-1">
+                    <Hand className="w-3 h-3 fill-black" /> [HAND RAISED]
                   </span>
                 )}
               </div>
 
-              {/* Bottom overlay status (Mute indicator) */}
+              {/* Bottom overlay status (Mute indicators) */}
               <div className="absolute bottom-3 right-3 z-10 flex gap-1">
                 {p.muted && (
-                  <div className="bg-rose-500/20 text-rose-400 border border-rose-500/30 backdrop-blur-md p-1.5 rounded-lg">
-                    <MicOff className="w-3.5 h-3.5" />
+                  <div className="bg-black border border-white/20 p-1 rounded-none text-red-500">
+                    <MicOff className="w-3 h-3" />
                   </div>
                 )}
                 {p.cameraOff && (
-                  <div className="bg-rose-500/20 text-rose-400 border border-rose-500/30 backdrop-blur-md p-1.5 rounded-lg">
-                    <VideoOff className="w-3.5 h-3.5" />
+                  <div className="bg-black border border-white/20 p-1 rounded-none text-red-500">
+                    <VideoOff className="w-3 h-3" />
                   </div>
                 )}
               </div>
@@ -138,100 +135,96 @@ export const VideoGrid: React.FC = () => {
         })}
       </div>
 
-      {/* Conference Controls Bar Overlay */}
-      <div className="h-20 bg-zinc-900/90 border border-zinc-800/80 backdrop-blur-md rounded-2xl flex items-center justify-between px-6 shadow-2xl shrink-0 mt-4 animate-in slide-in-from-bottom duration-300">
+      {/* Conference Controls Bar Overlay (Nothing OS stark toolbar style) */}
+      <div className="h-20 bg-black border border-zinc-900 rounded-none flex items-center justify-between px-6 shadow-none shrink-0 mt-4 animate-in slide-in-from-bottom duration-75">
         
-        {/* Left Side: Media Device Selectors */}
-        <div className="hidden md:flex gap-3 items-center">
-          {/* Camera selector */}
-          <div className="flex flex-col gap-1 text-[10px] text-zinc-500 font-semibold">
-            <span className="flex items-center gap-1"><Camera className="w-3 h-3" /> Camera</span>
+        {/* Left Side: Media Device selectors (Monochrome dropdowns) */}
+        <div className="hidden md:flex gap-4 items-center">
+          <div className="flex flex-col gap-1 text-[8px] text-zinc-500 font-bold uppercase tracking-widest">
+            <span className="flex items-center gap-1"><Camera className="w-3 h-3" /> CAMERA_STREAM</span>
             <select
               value={selectedVideoId || ''}
               onChange={(e) => changeVideoDevice(e.target.value)}
-              className="bg-zinc-950 border border-zinc-800 text-[10px] text-zinc-300 font-bold px-2 py-1 rounded-lg hover:border-indigo-500 outline-none transition"
+              className="bg-black border border-zinc-800 text-[10px] text-white font-bold px-2 py-1 rounded-none hover:border-white outline-none transition uppercase tracking-wider font-mono cursor-pointer"
             >
               {videoDevices.map((d) => (
-                <option key={d.deviceId} value={d.deviceId}>{d.label || 'Camera device'}</option>
+                <option key={d.deviceId} value={d.deviceId}>{d.label.toUpperCase() || 'CAMERA DEVICE'}</option>
               ))}
             </select>
           </div>
 
-          {/* Mic selector */}
-          <div className="flex flex-col gap-1 text-[10px] text-zinc-500 font-semibold">
-            <span className="flex items-center gap-1"><Volume2 className="w-3 h-3" /> Microphone</span>
+          <div className="flex flex-col gap-1 text-[8px] text-zinc-500 font-bold uppercase tracking-widest">
+            <span className="flex items-center gap-1"><Volume2 className="w-3 h-3" /> AUDIO_STREAM</span>
             <select
               value={selectedAudioId || ''}
               onChange={(e) => changeAudioDevice(e.target.value)}
-              className="bg-zinc-950 border border-zinc-800 text-[10px] text-zinc-300 font-bold px-2 py-1 rounded-lg hover:border-indigo-500 outline-none transition"
+              className="bg-black border border-zinc-800 text-[10px] text-white font-bold px-2 py-1 rounded-none hover:border-white outline-none transition uppercase tracking-wider font-mono cursor-pointer"
             >
               {audioDevices.map((d) => (
-                <option key={d.deviceId} value={d.deviceId}>{d.label || 'Mic device'}</option>
+                <option key={d.deviceId} value={d.deviceId}>{d.label.toUpperCase() || 'MICROPHONE'}</option>
               ))}
             </select>
           </div>
         </div>
 
-        {/* Center Section: Core Controls */}
+        {/* Center: Core Action Grid (snappy toggle transitions) */}
         <div className="flex gap-2">
-          {/* Mic Button */}
+          {/* Microphone Toggle */}
           <button
             onClick={toggleMic}
-            className={`w-11 h-11 rounded-xl flex items-center justify-center transition duration-300 ${
+            className={`w-10 h-10 rounded-none flex items-center justify-center border kinematic-transition ${
               micMuted
-                ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/20'
-                : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
+                ? 'bg-red-500/10 border-red-500 text-red-500'
+                : 'bg-black border-zinc-800 hover:bg-white hover:text-black hover:border-white text-white'
             }`}
           >
-            {micMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            {micMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
           </button>
 
-          {/* Camera Button */}
+          {/* Camera Toggle */}
           <button
             onClick={toggleCamera}
-            className={`w-11 h-11 rounded-xl flex items-center justify-center transition duration-300 ${
+            className={`w-10 h-10 rounded-none flex items-center justify-center border kinematic-transition ${
               cameraOff
-                ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/20'
-                : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
+                ? 'bg-red-500/10 border-red-500 text-red-500'
+                : 'bg-black border-zinc-800 hover:bg-white hover:text-black hover:border-white text-white'
             }`}
           >
-            {cameraOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+            {cameraOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
           </button>
 
-          {/* Screen Share Button */}
+          {/* Screen Share Toggle */}
           <button
             onClick={toggleScreenShare}
-            className={`w-11 h-11 rounded-xl flex items-center justify-center transition duration-300 ${
-              screenSharing
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
+            className={`w-10 h-10 rounded-none flex items-center justify-center border border-zinc-800 text-white hover:bg-white hover:text-black hover:border-white kinematic-transition ${
+              screenSharing ? 'bg-white text-black border-white' : 'bg-black'
             }`}
           >
-            <Monitor className="w-5 h-5" />
+            <Monitor className="w-4 h-4" />
           </button>
 
-          {/* Raise Hand Button */}
+          {/* Raise Hand Toggle */}
           <button
             onClick={toggleRaiseHand}
-            className={`w-11 h-11 rounded-xl flex items-center justify-center transition duration-300 ${
+            className={`w-10 h-10 rounded-none flex items-center justify-center border kinematic-transition ${
               raisingHand
-                ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20 animate-pulse'
-                : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
+                ? 'bg-white border-white text-black animate-pulse'
+                : 'bg-black border-zinc-800 hover:bg-white hover:text-black hover:border-white text-white'
             }`}
           >
-            <Hand className="w-5 h-5" />
+            <Hand className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Right Section: Red End Call Hangup */}
+        {/* Right: End Session (Stark Red or Outline Button) */}
         <div>
           <button
             onClick={leaveRoom}
-            className="flex items-center justify-center gap-2 px-4 py-3 md:px-5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-600/20 transition duration-300"
-            title="End Call"
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-none bg-black border border-red-500 text-red-500 hover:bg-red-500 hover:text-white font-mono font-black text-xs transition duration-75 btn-interactive uppercase"
+            title="Disconnect Stream"
           >
-            <PhoneOff className="w-5 h-5 md:w-4 md:h-4" />
-            <span className="hidden sm:inline">End Call</span>
+            <PhoneOff className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">DISCONNECT</span>
           </button>
         </div>
 

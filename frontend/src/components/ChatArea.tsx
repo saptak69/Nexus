@@ -4,7 +4,7 @@ import type { Message } from '../store/useChatStore';
 import { useAuthStore, API_BASE } from '../store/useAuthStore';
 import type { User } from '../store/useAuthStore';
 import { useWebRTCStore } from '../store/useWebRTCStore';
-import { Send, Paperclip, Smile, Edit2, Trash2, CornerUpLeft, X, Video, Image, FileText, MessageSquare, ArrowLeft, CheckCheck } from 'lucide-react';
+import { Send, Paperclip, Smile, Edit2, Trash2, CornerUpLeft, X, Video, Image, FileText, ArrowLeft, CheckCheck } from 'lucide-react';
 
 export const ChatArea: React.FC = () => {
   const { 
@@ -32,7 +32,7 @@ export const ChatArea: React.FC = () => {
   const [attachedFile, setAttachedFile] = useState<{ url: string; name: string; type: string } | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
-  // Auto Scroll to bottom
+  // Scroll to bottom
   const scrollToBottom = (behavior: 'smooth' | 'auto' = 'auto') => {
     messageEndRef.current?.scrollIntoView({ behavior });
   };
@@ -41,7 +41,7 @@ export const ChatArea: React.FC = () => {
     scrollToBottom('auto');
   }, [messages, typingUsers]);
 
-  // Fetch active DM user details if they aren't in local contact list
+  // Fetch active DM user details
   useEffect(() => {
     if (activeMode !== 'DM' || !activeDmUserId) {
       setFetchedFriend(null);
@@ -70,7 +70,6 @@ export const ChatArea: React.FC = () => {
     }
   }, [activeDmUserId, friends, activeMode, token]);
 
-  // Typing timer
   const localTypingTimeoutRef = useRef<any>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -88,7 +87,6 @@ export const ChatArea: React.FC = () => {
     }, 2500);
   };
 
-  // Drag and Drop files
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(true);
@@ -108,7 +106,6 @@ export const ChatArea: React.FC = () => {
     }
   };
 
-  // Upload File API
   const uploadFile = async (file: File) => {
     if (!token) return;
     setUploading(true);
@@ -145,13 +142,12 @@ export const ChatArea: React.FC = () => {
     }
   };
 
-  // Send Message
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() && !attachedFile) return;
 
     if (!connected) {
-      alert("Connection lost. Please wait while we reconnect to the chat server...");
+      alert("OFFLINE: Re-connecting to chat stream...");
       return;
     }
 
@@ -169,7 +165,6 @@ export const ChatArea: React.FC = () => {
     sendTyping(false);
   };
 
-  // Edit Message API
   const handleEditSubmit = async (messageId: number) => {
     if (!editText.trim() || !token) return;
     try {
@@ -182,7 +177,6 @@ export const ChatArea: React.FC = () => {
         body: JSON.stringify({ content: editText.trim() }),
       });
       if (response.ok) {
-        // Refresh active log
         useChatStore.getState().fetchMessages(0);
         setEditingMessageId(null);
         setEditText('');
@@ -192,7 +186,6 @@ export const ChatArea: React.FC = () => {
     }
   };
 
-  // Delete Message API
   const handleDeleteMessage = async (messageId: number) => {
     if (!token) return;
     try {
@@ -208,7 +201,6 @@ export const ChatArea: React.FC = () => {
     }
   };
 
-  // Add/Remove Reaction API
   const handleToggleReaction = async (messageId: number, emoji: string, alreadyReacted: boolean) => {
     if (!token) return;
     const method = alreadyReacted ? 'DELETE' : 'POST';
@@ -225,42 +217,47 @@ export const ChatArea: React.FC = () => {
     }
   };
 
-  // Start DM video call
   const handleDMCall = () => {
     if (activeDmUserId) {
-      // Create a unique room ID for the 1-to-1 call
       const roomId = `dm_${Math.min(user!.id, activeDmUserId)}_${Math.max(user!.id, activeDmUserId)}`;
       joinRoom(roomId);
     }
   };
 
-  // Active view titles
   let title = '';
   let subTitle = '';
   let showCallButton = false;
   let activeFriend: User | null = null;
 
   if (activeMode === 'SERVER') {
-    title = 'Server Room';
+    title = 'SERVER ROOM';
   } else {
     activeFriend = fetchedFriend;
-    title = activeFriend ? activeFriend.username : 'Loading...';
+    title = activeFriend ? activeFriend.username : 'SYNCING...';
     subTitle = activeFriend?.statusMessage || (activeFriend ? activeFriend.presence.toLowerCase() : '');
     showCallButton = !!activeFriend;
   }
 
-  // Format date helper
   const formatTime = (isoString: string) => {
     const d = new Date(isoString);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
   };
 
-  const getPresenceColor = (presence?: string) => {
+  // Nothing OS square presence indicator
+  const renderPresenceSquare = (presence?: string) => {
     switch (presence) {
-      case 'ONLINE': return 'bg-[#10b981]'; // Emerald Green
-      case 'AWAY': return 'bg-[#f59e0b]'; // Amber Gold
-      case 'DND': return 'bg-[#f43f5e]'; // Rose Red
-      default: return 'bg-[#71717a]'; // Zinc Grey
+      case 'ONLINE':
+        return <div className="w-2.5 h-2.5 bg-white border border-white shrink-0" />;
+      case 'AWAY':
+        return <div className="w-2.5 h-2.5 bg-transparent border border-white shrink-0" />;
+      case 'DND':
+        return (
+          <div className="w-2.5 h-2.5 bg-zinc-800 border border-white shrink-0 flex items-center justify-center text-[7px] text-white font-mono leading-none">
+            ×
+          </div>
+        );
+      default:
+        return <div className="w-2.5 h-2.5 bg-transparent border border-zinc-700 shrink-0" />;
     }
   };
 
@@ -270,59 +267,66 @@ export const ChatArea: React.FC = () => {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`flex-1 h-screen bg-zinc-950 flex flex-col justify-between overflow-hidden relative ${
-        dragOver ? 'border-2 border-dashed border-indigo-500 bg-indigo-500/5' : ''
+      className={`flex-1 h-screen bg-black bg-dot-grid flex flex-col justify-between overflow-hidden relative rounded-none border-l border-zinc-900 ${
+        dragOver ? 'border border-dashed border-white bg-white/5' : ''
       }`}
     >
-      {/* Premium ambient glow background */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-500/10 via-zinc-950 to-zinc-950 pointer-events-none z-0" />
       
-      {/* Header */}
+      {/* HEADER BAR (Monochromatic, sharp borders, all buttons visible) */}
       {title && (
-        <div className="h-16 px-4 border-b border-zinc-900 flex items-center justify-between bg-zinc-950/80 backdrop-blur-md shrink-0 z-10 relative shadow-sm">
+        <div className="h-16 px-4 border-b border-zinc-900 flex items-center justify-between bg-black shrink-0 z-10 relative">
           <div className="flex items-center min-w-0 flex-1 mr-4">
-            {/* Back Button for mobile navigation */}
+            
+            {/* Back Button for mobile viewports */}
             <button
               onClick={() => setActiveDmUserId(null)}
-              className="md:hidden p-1.5 mr-2 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-900 transition flex items-center justify-center shrink-0"
+              className="md:hidden px-2.5 py-1.5 mr-3 text-[10px] font-mono font-bold text-white bg-black border border-white/20 hover:bg-white hover:text-black rounded-none transition flex items-center justify-center shrink-0"
               title="Back"
             >
-              <ArrowLeft className="w-5 h-5" />
+              [BACK]
             </button>
 
-            {/* Active Contact profile picture */}
+            {/* Gray-scaled profile picture */}
             {activeFriend && (
               <div className="relative shrink-0 mr-3">
                 {activeFriend.avatarUrl ? (
-                  <img src={activeFriend.avatarUrl} alt={activeFriend.username} className="w-10 h-10 rounded-full object-cover border border-white/5" />
+                  <img 
+                    src={activeFriend.avatarUrl} 
+                    alt={activeFriend.username} 
+                    className="w-9 h-9 rounded-none object-cover border border-white/10 filter grayscale contrast-120" 
+                  />
                 ) : (
-                  <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-white text-sm">
+                  <div className="w-9 h-9 rounded-none bg-zinc-900 border border-white/10 flex items-center justify-center font-mono font-bold text-white text-xs">
                     {activeFriend.username.substring(0, 2).toUpperCase()}
                   </div>
                 )}
                 {/* Active State indicator */}
-                <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-zinc-950 ${getPresenceColor(activeFriend.presence)}`} />
+                <div className="absolute -bottom-1 -right-1">
+                  {renderPresenceSquare(activeFriend.presence)}
+                </div>
               </div>
             )}
 
-            <div className="flex flex-col min-w-0">
-              <span className="text-sm sm:text-base font-bold text-zinc-100 truncate leading-tight">{title}</span>
+            <div className="flex flex-col min-w-0 leading-tight">
+              <span className="text-xs sm:text-sm font-mono font-black text-white uppercase tracking-wider truncate">{title}</span>
               {subTitle && (
-                <span className="text-[10px] sm:text-[11px] text-zinc-500 truncate font-semibold uppercase tracking-wider leading-none mt-1">
+                <span className="text-[9px] font-mono text-zinc-500 truncate uppercase tracking-widest mt-0.5">
                   {subTitle}
                 </span>
               )}
             </div>
           </div>
 
+          {/* Video call button is fully visible on both mobile and desktop */}
           <div className="flex items-center gap-1.5 shrink-0">
             {showCallButton && (
               <button
                 onClick={handleDMCall}
-                className="p-2.5 text-indigo-400 hover:text-indigo-300 hover:bg-zinc-900 rounded-full transition flex items-center justify-center shrink-0"
-                title="Start Video Call"
+                className="px-3 py-1.5 text-[10px] font-mono font-black uppercase text-white bg-black border border-white hover:bg-white hover:text-black rounded-none kinematic-transition flex items-center gap-1.5 shrink-0"
+                title="Establish Video Stream"
               >
-                <Video className="w-5 h-5" />
+                <Video className="w-3.5 h-3.5" />
+                <span>[CALL]</span>
               </button>
             )}
           </div>
@@ -331,31 +335,28 @@ export const ChatArea: React.FC = () => {
 
       {/* Drag Over Overlay */}
       {dragOver && (
-        <div className="absolute inset-0 bg-indigo-500/10 backdrop-blur-xs flex items-center justify-center pointer-events-none z-40">
-          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl flex flex-col items-center gap-3 shadow-2xl">
-            <Paperclip className="w-10 h-10 text-indigo-500 animate-bounce" />
-            <span className="text-sm font-bold text-white">Drop files to attach to chat</span>
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center pointer-events-none z-40">
+          <div className="bg-black border border-white p-6 rounded-none flex flex-col items-center gap-2">
+            <span className="text-xs font-mono font-black uppercase tracking-widest text-white">DRAG_DROP_ATTACHMENT</span>
+            <span className="text-[9px] font-mono text-zinc-500 uppercase">RELEASE FILE TO SEND</span>
           </div>
         </div>
       )}
 
-      {/* Message History list */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0 scrollbar-thin z-10 relative">
+      {/* Message History list (Applied linear fade mask for older messages) */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0 z-10 relative scrollbar-thin fade-history-mask bg-black/10">
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-[#8696a0] gap-2 select-none">
-            <MessageSquare className="w-12 h-12 text-[#2f3b43]" />
-            <span className="text-xs font-semibold">No messages yet. Send a message to start chatting!</span>
+          <div className="h-full flex flex-col items-center justify-center text-zinc-600 gap-1 select-none">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-600">No active stream</span>
           </div>
         ) : (
           messages.map((msg) => {
             const isMe = msg.sender.id === user?.id;
             
-            // Check if user reacted to this message
             const hasUserReacted = (emoji: string) => {
               return msg.reactions.some((r) => r.emoji === emoji && r.user.id === user?.id);
             };
 
-            // Group reactions by emoji
             const reactionCounts = msg.reactions.reduce((acc, r) => {
               acc[r.emoji] = (acc[r.emoji] || 0) + 1;
               return acc;
@@ -364,27 +365,33 @@ export const ChatArea: React.FC = () => {
             return (
               <div 
                 key={msg.id} 
-                className={`flex items-end gap-2.5 ${isMe ? 'justify-end' : 'justify-start'} group relative px-1 py-0.5 animate-message-pop`}
+                className={`flex flex-col group relative px-1 py-1 animate-fade-snap ${
+                  isMe ? 'items-end' : 'items-start'
+                }`}
               >
-                {/* Message block */}
-                <div className={`flex flex-col max-w-[75%] ${isMe ? 'items-end' : 'items-start'}`}>
+                {/* Time Indicator - Hover Only absolute stamp */}
+                <div className="opacity-0 group-hover:opacity-100 absolute top-[-10px] px-2 py-0.5 bg-black border border-zinc-800 text-[8px] font-mono text-zinc-400 z-20 kinematic-transition uppercase">
+                  {formatTime(msg.createdAt)}
+                </div>
+
+                <div className={`flex flex-col max-w-[85%] sm:max-w-[70%] ${isMe ? 'items-end' : 'items-start'}`}>
                   
-                  {/* Message Bubble (Premium Snappy Design) */}
-                  <div className={`relative rounded-2xl px-4 py-2.5 text-xs font-medium leading-relaxed shadow-sm break-words transition-all duration-200 ${
+                  {/* Glassmorphic Bubble - Square corners, no rounded edges */}
+                  <div className={`relative px-4 py-3 text-xs leading-relaxed break-words rounded-none border transition-all duration-700 ${
                     isMe 
-                      ? 'bg-indigo-600 text-white rounded-tr-none' 
-                      : 'bg-zinc-900 text-zinc-100 rounded-tl-none border border-zinc-800'
-                  } ${msg.deleted ? 'italic text-zinc-500 bg-opacity-40' : ''}`}>
+                      ? 'bubble-glass-me font-sans font-medium' 
+                      : 'bubble-glass text-zinc-100 font-sans'
+                  } ${msg.deleted ? 'opacity-30 italic' : ''}`}>
                     
                     {/* Thread reply details inside the bubble */}
                     {msg.parentMessage && (
-                      <div className={`mb-2 p-2.5 rounded-xl text-[10px] border-l-2 flex flex-col gap-0.5 ${
+                      <div className={`mb-2.5 p-2 rounded-none text-[9px] font-mono border-l-2 flex flex-col gap-0.5 ${
                         isMe 
-                          ? 'bg-black/15 border-white/20 text-zinc-200' 
-                          : 'bg-black/20 border-indigo-500 text-zinc-300'
+                          ? 'bg-black/10 border-black/40 text-zinc-800' 
+                          : 'bg-white/5 border-white/20 text-zinc-400'
                       }`}>
-                        <span className="font-bold text-white">@{msg.parentMessage.sender.username}</span>
-                        <span className="truncate max-w-[220px]">{msg.parentMessage.content}</span>
+                        <span className="font-bold">@{msg.parentMessage.sender.username.toUpperCase()}</span>
+                        <span className="truncate max-w-[200px]">{msg.parentMessage.content}</span>
                       </div>
                     )}
 
@@ -395,78 +402,81 @@ export const ChatArea: React.FC = () => {
                           type="text"
                           value={editText}
                           onChange={(e) => setEditText(e.target.value)}
-                          className="flex-1 px-2.5 py-1 text-xs rounded-lg bg-black/30 border border-white/10 text-white focus:outline-none focus:border-indigo-500"
+                          className="flex-1 px-2 py-1 text-xs rounded-none bg-black/60 border border-white/20 text-white focus:outline-none focus:border-white font-mono"
                         />
                         <button
                           onClick={() => handleEditSubmit(msg.id)}
-                          className="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold transition"
+                          className="bg-white text-black border border-white px-2 py-1 rounded-none text-[9px] font-mono font-black uppercase hover:bg-black hover:text-white kinematic-transition"
                         >
-                          Save
+                          SAVE
                         </button>
                         <button
                           onClick={() => setEditingMessageId(null)}
-                          className="bg-white/10 hover:bg-white/20 text-white px-2 py-1 rounded-lg text-[10px] font-bold transition"
+                          className="bg-zinc-900 border border-zinc-800 text-white px-2 py-1 rounded-none text-[9px] font-mono hover:bg-white hover:text-black kinematic-transition"
                         >
                           X
                         </button>
                       </div>
                     ) : (
-                      <p className={`text-[13px] leading-relaxed break-words ${
-                        msg.deleted ? 'italic text-zinc-500' : ''
+                      <p className={`text-[12px] leading-relaxed break-words tracking-tight ${
+                        msg.deleted ? 'italic' : ''
                       }`}>
                         {msg.content}
                       </p>
                     )}
 
-                    {/* Attachment Embeds inside bubble */}
+                    {/* Attachment Embeds */}
                     {msg.fileUrl && (
-                      <div className="mt-2 max-w-full">
+                      <div className="mt-2.5 max-w-full">
                         {msg.fileType?.startsWith('image/') ? (
                           <img 
                             src={msg.fileUrl} 
                             alt={msg.fileName} 
-                            className="rounded-lg max-h-60 border border-black/10 object-cover cursor-zoom-in hover:opacity-95 transition"
+                            className="rounded-none max-h-60 border border-white/10 object-cover cursor-zoom-in filter grayscale contrast-125"
                             onClick={() => window.open(msg.fileUrl, '_blank')}
                           />
                         ) : msg.fileType?.startsWith('video/') ? (
                           <video 
                             src={msg.fileUrl} 
                             controls 
-                            className="rounded-lg max-h-60 max-w-full border border-black/10 shadow-sm"
+                            className="rounded-none max-h-60 max-w-full border border-white/10 shadow-none filter grayscale contrast-110"
                           />
                         ) : msg.fileType?.startsWith('audio/') ? (
                           <audio 
                             src={msg.fileUrl} 
                             controls 
-                            className="w-64 max-w-full"
+                            className="w-60 max-w-full invert"
                           />
                         ) : (
                           <a 
                             href={msg.fileUrl} 
                             target="_blank" 
                             rel="noreferrer"
-                            className="flex items-center gap-2.5 p-2.5 rounded-lg bg-black/25 hover:bg-black/35 transition text-[11px] text-slate-100"
+                            className={`flex items-center gap-2 p-2 rounded-none border text-[10px] font-mono uppercase tracking-wider ${
+                              isMe ? 'bg-black/5 border-black/20 text-zinc-900' : 'bg-white/5 border-white/15 text-white'
+                            }`}
                           >
-                            <FileText className="w-5 h-5 text-indigo-400 shrink-0" />
+                            <FileText className="w-4 h-4 shrink-0" />
                             <div className="flex flex-col min-w-0">
-                              <span className="text-white truncate font-medium">{msg.fileName}</span>
-                              <span className="text-[9px] text-zinc-400 uppercase">{msg.fileType || 'Attachment'}</span>
+                              <span className="truncate font-black">{msg.fileName}</span>
+                              <span className="text-[8px] opacity-60 mt-0.5">{msg.fileType || 'DATA_STREAM'}</span>
                             </div>
                           </a>
                         )}
                       </div>
                     )}
 
-                    {/* Bottom Metadata inside bubble (Time, ticks, Edited tag) */}
-                    <div className="flex items-center justify-end gap-1 mt-1 text-[9px] text-[#8696a0] select-none">
-                      <span>{formatTime(msg.createdAt)}</span>
-                      {msg.edited && <span>(edited)</span>}
-                      {isMe && <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />}
+                    {/* Bottom ticks and edited details */}
+                    <div className={`flex items-center justify-end gap-1 mt-1.5 text-[8px] font-mono uppercase select-none ${
+                      isMe ? 'text-zinc-600' : 'text-zinc-500'
+                    }`}>
+                      {msg.edited && <span>[EDIT]</span>}
+                      {isMe && <CheckCheck className="w-3 h-3 text-black" />}
                     </div>
 
                   </div>
 
-                  {/* Reaction Badges below the bubble */}
+                  {/* Reaction Badges */}
                   {msg.reactions.length > 0 && (
                     <div className={`flex flex-wrap gap-1 mt-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
                       {Object.entries(reactionCounts).map(([emoji, count]) => {
@@ -475,10 +485,10 @@ export const ChatArea: React.FC = () => {
                           <button
                             key={emoji}
                             onClick={() => handleToggleReaction(msg.id, emoji, isReacted)}
-                            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border transition ${
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded-none text-[9px] font-mono border transition ${
                               isReacted
-                                ? 'bg-[#00a884]/20 border-[#00a884] text-[#00a884] font-bold'
-                                : 'bg-[#202c33] border-[#2f3b43] text-[#8696a0] hover:border-white/10'
+                                ? 'bg-white border-white text-black font-black'
+                                : 'bg-black border-zinc-800 text-zinc-500 hover:border-white/20'
                             }`}
                           >
                             <span>{emoji}</span>
@@ -490,27 +500,27 @@ export const ChatArea: React.FC = () => {
                   )}
                 </div>
 
-                {/* Floating Hover Controls */}
+                {/* Floating Hover Controls (Sharp corners, monochrome buttons) */}
                 {!msg.deleted && (
-                  <div className={`absolute top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-0.5 bg-[#202c33] border border-[#2f3b43] rounded-lg p-0.5 shadow-xl z-20 ${
-                    isMe ? 'left-0 -translate-x-[105%]' : 'right-0 translate-x-[105%]'
+                  <div className={`absolute top-[40%] hidden group-hover:flex items-center bg-black border border-white rounded-none p-0.5 shadow-none z-20 ${
+                    isMe ? 'left-0' : 'right-0'
                   }`}>
                     <button
                       onClick={() => setReplyToMessage(msg)}
-                      className="p-1 hover:bg-[#374248] rounded text-[#aebac1] hover:text-white transition"
+                      className="p-1.5 hover:bg-zinc-900 rounded-none text-zinc-400 hover:text-white transition"
                       title="Reply"
                     >
-                      <CornerUpLeft className="w-3.5 h-3.5" />
+                      <CornerUpLeft className="w-3 h-3" />
                     </button>
 
-                    {/* Emoji Reaction Quick Picks */}
+                    {/* Emoji Reaction Picks */}
                     {['👍', '❤️', '😂', '🔥'].map((emoji) => {
                       const isReacted = hasUserReacted(emoji);
                       return (
                         <button
                           key={emoji}
                           onClick={() => handleToggleReaction(msg.id, emoji, isReacted)}
-                          className="p-1 hover:bg-[#374248] rounded text-xs transition"
+                          className="p-1 hover:bg-zinc-900 rounded-none text-[11px] transition"
                         >
                           {emoji}
                         </button>
@@ -524,17 +534,17 @@ export const ChatArea: React.FC = () => {
                             setEditingMessageId(msg.id);
                             setEditText(msg.content);
                           }}
-                          className="p-1 hover:bg-[#374248] rounded text-[#aebac1] hover:text-white transition"
+                          className="p-1.5 hover:bg-zinc-900 rounded-none text-zinc-400 hover:text-white transition"
                           title="Edit"
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
+                          <Edit2 className="w-3 h-3" />
                         </button>
                         <button
                           onClick={() => handleDeleteMessage(msg.id)}
-                          className="p-1 hover:bg-[#374248] rounded text-[#ea0038] hover:bg-[#ea0038]/20 transition"
+                          className="p-1.5 hover:bg-red-500/10 rounded-none text-red-500 transition"
                           title="Delete"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3 h-3" />
                         </button>
                       </>
                     )}
@@ -548,59 +558,59 @@ export const ChatArea: React.FC = () => {
         <div ref={messageEndRef} />
       </div>
 
-      {/* Bottom Input Area */}
-      <div className="p-3 bg-zinc-950 border-t border-zinc-900 shrink-0 relative z-10">
+      {/* FIXED BOTTOM-ANCHORED INPUT BAR (Frosted-glass style, stark monochrome) */}
+      <div className="p-3 bg-black/80 backdrop-blur-md border-t border-zinc-900 shrink-0 relative z-10">
         
         {/* Reply Indicator banner */}
         {replyToMessage && (
-          <div className="flex items-center justify-between px-3 py-1.5 bg-indigo-500/10 border-l-4 border-indigo-500 text-[11px] text-indigo-400 mb-2 rounded-r">
-            <span className="truncate font-semibold">Replying to @{replyToMessage.sender.username}: {replyToMessage.content}</span>
+          <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-900 border-l border-white text-[9px] font-mono text-zinc-400 mb-2 rounded-none">
+            <span className="truncate uppercase font-bold">REPLY_TO @{replyToMessage.sender.username.toUpperCase()}: {replyToMessage.content}</span>
             <button onClick={() => setReplyToMessage(null)}>
-              <X className="w-4 h-4 hover:text-white transition" />
+              <X className="w-3.5 h-3.5 hover:text-white transition" />
             </button>
           </div>
         )}
 
         {/* Attached File Display banner */}
         {attachedFile && (
-          <div className="flex items-center justify-between p-2.5 bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 mb-2 rounded-xl">
+          <div className="flex items-center justify-between p-2 bg-zinc-950 border border-zinc-900 text-[9px] font-mono text-zinc-400 mb-2 rounded-none">
             <div className="flex items-center gap-2 truncate">
               {attachedFile.type.startsWith('image/') ? (
-                <Image className="w-4 h-4 text-indigo-400" />
+                <Image className="w-3.5 h-3.5 text-zinc-400" />
               ) : (
-                <FileText className="w-4 h-4 text-indigo-400" />
+                <FileText className="w-3.5 h-3.5 text-zinc-400" />
               )}
-              <span className="text-white truncate font-semibold">{attachedFile.name}</span>
+              <span className="text-white truncate font-bold uppercase">{attachedFile.name}</span>
             </div>
             <button onClick={() => setAttachedFile(null)}>
-              <X className="w-4 h-4 hover:text-red-400 transition" />
+              <X className="w-3.5 h-3.5 hover:text-red-500 transition" />
             </button>
           </div>
         )}
 
         {/* Live Typing indicator */}
         {Object.keys(typingUsers).length > 0 && (
-          <div className="absolute top-[-24px] left-4 text-[10px] text-indigo-400 flex items-center gap-1.5 italic select-none bg-zinc-900 border border-zinc-800/80 px-2.5 py-0.5 rounded-full shadow-lg">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping shrink-0" />
-            {Object.values(typingUsers).join(', ')} {Object.keys(typingUsers).length === 1 ? 'is' : 'are'} typing...
+          <div className="absolute top-[-20px] left-4 text-[8px] font-mono text-white flex items-center gap-1.5 uppercase tracking-widest bg-black border border-zinc-900 px-2.5 py-0.5 rounded-none">
+            <span className="w-1 h-1 bg-white animate-pulse shrink-0" />
+            {Object.values(typingUsers).join(', ')} typing...
           </div>
         )}
 
-        {/* Chat Entry Form */}
+        {/* Chat Entry Form - Clean monospaced buttons visible on mobile */}
         <form onSubmit={handleSend} className="flex gap-2.5 items-center">
           
-          {/* File upload button */}
+          {/* File Upload Trigger */}
           <button
             type="button"
             disabled={uploading}
             onClick={() => fileInputRef.current?.click()}
-            className="p-3 text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-900 transition flex items-center justify-center shrink-0"
-            title="Attach file"
+            className="p-3 text-white border border-zinc-900 hover:border-white bg-black rounded-none transition flex items-center justify-center shrink-0 btn-interactive"
+            title="Attach Stream Data"
           >
             {uploading ? (
-              <div className="w-5 h-5 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+              <div className="w-4 h-4 border border-white/30 border-t-white rounded-none animate-spin"></div>
             ) : (
-              <Paperclip className="w-5 h-5 rotate-45" />
+              <Paperclip className="w-4 h-4 rotate-45" />
             )}
           </button>
           <input
@@ -610,7 +620,7 @@ export const ChatArea: React.FC = () => {
             className="hidden"
           />
 
-          {/* Text Area input */}
+          {/* Monospaced text entry */}
           <div className="flex-1 relative">
             <textarea
               rows={1}
@@ -622,21 +632,21 @@ export const ChatArea: React.FC = () => {
                   handleSend(e);
                 }
               }}
-              placeholder="Message"
-              className="w-full pl-4 pr-10 py-3 text-xs bg-zinc-900 border border-zinc-800 focus:border-zinc-700 rounded-xl text-zinc-100 placeholder-zinc-500 focus:outline-none transition resize-none max-h-24 font-medium"
+              placeholder="ENTER CONSOLE MESSAGE..."
+              className="w-full pl-4 pr-10 py-2.5 text-xs font-mono bg-zinc-950 border border-zinc-900 focus:border-white/30 rounded-none text-white placeholder-zinc-700 focus:outline-none transition resize-none max-h-24 uppercase"
             />
-            {/* Smile Emoji Shortcut (visual icon) */}
-            <span className="absolute right-3.5 inset-y-0 flex items-center text-zinc-400 hover:text-white cursor-pointer select-none">
-              <Smile className="w-5 h-5" />
+            {/* Smile Emoji Shortcut */}
+            <span className="absolute right-3 inset-y-0 flex items-center text-zinc-600 hover:text-white cursor-pointer select-none">
+              <Smile className="w-4.5 h-4.5" />
             </span>
           </div>
 
-          {/* Send Submit Button */}
+          {/* Stark SEND button - fully visible on mobile */}
           <button
             type="submit"
-            className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white transition shrink-0 flex items-center justify-center shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20"
+            className="px-4 py-2.5 rounded-none bg-white text-black font-mono font-black text-xs border border-white hover:bg-black hover:text-white transition shrink-0 flex items-center justify-center btn-interactive"
           >
-            <Send className="w-5 h-5" />
+            SEND
           </button>
 
         </form>
