@@ -80,7 +80,10 @@ public class UserController {
     @GetMapping("/search")
     public ResponseEntity<?> searchUsers(@RequestParam String query) {
         try {
-            List<User> users = userService.searchUsers(query);
+            User current = getAuthenticatedUser();
+            List<User> users = userService.searchUsers(query).stream()
+                    .filter(u -> !u.getId().equals(current.getId()))
+                    .toList();
             return ResponseEntity.ok(users);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());

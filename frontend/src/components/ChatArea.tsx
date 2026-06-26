@@ -25,6 +25,7 @@ export const ChatArea: React.FC = () => {
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
   const [editText, setEditText] = useState('');
+  const [fetchedFriend, setFetchedFriend] = useState<User | null>(null);
   
   // File Upload states
   const [uploading, setUploading] = useState(false);
@@ -39,6 +40,35 @@ export const ChatArea: React.FC = () => {
   useEffect(() => {
     scrollToBottom('auto');
   }, [messages, typingUsers]);
+
+  // Fetch active DM user details if they aren't in local contact list
+  useEffect(() => {
+    if (activeMode !== 'DM' || !activeDmUserId) {
+      setFetchedFriend(null);
+      return;
+    }
+
+    const found = friends.find(f => f.id === activeDmUserId);
+    if (found) {
+      setFetchedFriend(found);
+    } else {
+      if (!token) return;
+      fetch(`${API_BASE}/users/${activeDmUserId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('User not found');
+      })
+      .then(data => {
+        setFetchedFriend(data);
+      })
+      .catch(e => {
+        console.error("Failed to load user details", e);
+        setFetchedFriend(null);
+      });
+    }
+  }, [activeDmUserId, friends, activeMode, token]);
 
   // Typing timer
   const localTypingTimeoutRef = useRef<any>(null);
@@ -213,8 +243,8 @@ export const ChatArea: React.FC = () => {
   if (activeMode === 'SERVER') {
     title = 'Server Room';
   } else {
-    activeFriend = friends.find(f => f.id === activeDmUserId) || null;
-    title = activeFriend ? activeFriend.username : 'Direct Chat';
+    activeFriend = fetchedFriend;
+    title = activeFriend ? activeFriend.username : 'Loading...';
     subTitle = activeFriend?.statusMessage || (activeFriend ? activeFriend.presence.toLowerCase() : '');
     showCallButton = !!activeFriend;
   }

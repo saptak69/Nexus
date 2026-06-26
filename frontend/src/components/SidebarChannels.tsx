@@ -110,15 +110,17 @@ export const SidebarChannels: React.FC = () => {
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
   };
 
-  // Filter local contacts based on search query
+  // Filter local contacts based on search query, excluding the current logged-in user
   const filteredContacts = [...friends.filter((contact) =>
-    contact.username.toLowerCase().includes(filterQuery.toLowerCase()) ||
-    contact.userTag?.toLowerCase().includes(filterQuery.toLowerCase())
+    contact.id !== user?.id && (
+      contact.username.toLowerCase().includes(filterQuery.toLowerCase()) ||
+      contact.userTag?.toLowerCase().includes(filterQuery.toLowerCase())
+    )
   )];
 
-  // Merge backend search results
+  // Merge backend search results, excluding the current logged-in user
   searchResults.forEach((res) => {
-    if (!filteredContacts.some((c) => c.id === res.id)) {
+    if (res.id !== user?.id && !filteredContacts.some((c) => c.id === res.id)) {
       filteredContacts.push(res);
     }
   });
