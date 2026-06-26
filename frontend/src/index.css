@@ -57,3 +57,19 @@ body {
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
   outline: none;
 }
+
+/* Quick, minimal fade-in animation for messages */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-message-pop {
+  animation: fadeInUp 0.12s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

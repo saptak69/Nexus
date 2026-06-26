@@ -41,10 +41,18 @@ public class UserService {
             throw new RuntimeException("Email is already in use!");
         }
 
+        // Generate unique user tag (username + 4 random alphanumeric chars)
+        String userTag;
+        do {
+            String randomSuffix = java.util.UUID.randomUUID().toString().substring(0, 4);
+            userTag = username.toLowerCase().replaceAll("\\s+", "") + "_" + randomSuffix;
+        } while (userRepository.existsByUserTag(userTag));
+
         User user = User.builder()
                 .username(username)
                 .email(email)
                 .password(passwordEncoder.encode(password))
+                .userTag(userTag)
                 .presence(User.PresenceStatus.ONLINE) // default to online upon registration
                 .build();
 
@@ -97,7 +105,16 @@ public class UserService {
     }
 
     public List<User> searchUsers(String query) {
-        return userRepository.findByUsernameContainingIgnoreCase(query);
+        String cleanedQuery = query.trim();
+        if (cleanedQuery.startsWith("@")) {
+            cleanedQuery = cleanedQuery.substring(1).trim();
+        }
+        
+        Optional<User> userOpt = userRepository.findByUserTagIgnoreCase(cleanedQuery);
+        if (userOpt.isPresent()) {
+            return List.of(userOpt.get());
+        }
+        return List.of();
     }
 
     public List<User> findAll() {
@@ -105,8 +122,6 @@ public class UserService {
     }
 
     public List<User> findAllExcept(Long userId) {
-        List<User> all = userRepository.findAll();
-        all.removeIf(u -> u.getId().equals(userId));
-        return all;
+        return userRepository.findChatPartners(userId);
     }
 }

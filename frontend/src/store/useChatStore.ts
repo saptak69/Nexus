@@ -395,7 +395,16 @@ export const useChatStore = create<ChatState>((set, get) => {
 
         if (type === 'CHAT_MESSAGE') {
           const { message } = data;
-          const { activeMode, activeChannelId, activeDmUserId } = get();
+          const { activeMode, activeChannelId, activeDmUserId, friends } = get();
+
+          // Instantly parse and add the partner to our inbox list if they aren't already present
+          if (!message.channel && message.recipient) {
+            const currentUserId = useAuthStore.getState().user?.id;
+            const partner = message.sender.id === currentUserId ? message.recipient : message.sender;
+            if (partner && partner.id !== currentUserId && !friends.some((f) => f.id === partner.id)) {
+              set((state) => ({ friends: [...state.friends, partner] }));
+            }
+          }
 
           // Check if message belongs to currently open view
           let isCurrentView = false;
@@ -411,7 +420,20 @@ export const useChatStore = create<ChatState>((set, get) => {
           }
 
           if (isCurrentView) {
-            set((state) => ({ messages: [...state.messages, message] }));
+            set((state) => {
+              // Remove the optimistic placeholder if it exists (by checking temporary negative IDs)
+              const filtered = state.messages.filter((m) => {
+                if (m.id < 0 && m.content === message.content && m.sender.id === message.sender.id) {
+                  return false;
+                }
+                // Prevent duplicate real IDs
+                if (m.id === message.id) {
+                  return false;
+                }
+                return true;
+              });
+              return { messages: [...filtered, message] };
+            });
           }
         } else if (type === 'TYPING') {
           const { senderId, senderName, isTyping } = data;
@@ -465,10 +487,12 @@ export const useChatStore = create<ChatState>((set, get) => {
       if (!socket || socket.readyState !== WebSocket.OPEN) return;
 
       const user = useAuthStore.getState().user;
+      if (!user) return;
+
       const event: any = {
         type: 'CHAT_MESSAGE',
         content,
-        senderName: user?.username,
+        senderName: user.username,
         parentId: options?.parentId,
         fileUrl: options?.fileUrl,
         fileName: options?.fileName,
@@ -484,6 +508,25 @@ export const useChatStore = create<ChatState>((set, get) => {
       }
 
       socket.send(JSON.stringify(event));
+
+      // Add optimistic message to store instantly
+      const optimisticMessage: Message = {
+        id: -Date.now(), // negative id indicates optimistic message
+        content,
+        sender: user,
+        channel: activeMode === 'SERVER' ? { id: activeChannelId } as any : null,
+        recipient: activeMode === 'DM' ? { id: activeDmUserId } as any : null,
+        parentMessage: options?.parentId ? { id: options.parentId } as any : null,
+        fileUrl: options?.fileUrl,
+        fileName: options?.fileName,
+        fileType: options?.fileType,
+        edited: false,
+        deleted: false,
+        reactions: [],
+        createdAt: new Date().toISOString()
+      };
+
+      set((state) => ({ messages: [...state.messages, optimisticMessage] }));
     },
 
     sendTyping: (isTyping) => {

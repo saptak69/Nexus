@@ -4,6 +4,7 @@ export interface User {
   id: number;
   username: string;
   email: string;
+  userTag?: string;
   avatarUrl?: string;
   statusMessage?: string;
   presence: 'ONLINE' | 'AWAY' | 'DND' | 'OFFLINE';

@@ -47,6 +47,9 @@ public class User {
 
     private String statusMessage;
 
+    @Column(unique = true, nullable = false)
+    private String userTag;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PresenceStatus presence = PresenceStatus.OFFLINE;

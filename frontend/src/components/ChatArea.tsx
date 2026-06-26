@@ -32,12 +32,12 @@ export const ChatArea: React.FC = () => {
   const [dragOver, setDragOver] = useState(false);
 
   // Auto Scroll to bottom
-  const scrollToBottom = () => {
-    messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (behavior: 'smooth' | 'auto' = 'auto') => {
+    messageEndRef.current?.scrollIntoView({ behavior });
   };
 
   useEffect(() => {
-    scrollToBottom();
+    scrollToBottom('auto');
   }, [messages, typingUsers]);
 
   // Typing timer
@@ -278,9 +278,11 @@ export const ChatArea: React.FC = () => {
             {showCallButton && (
               <button
                 onClick={handleDMCall}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#00a884]/15 hover:bg-[#00a884] text-[#00a884] hover:text-white font-bold text-xs transition"
+                className="flex items-center justify-center gap-1.5 p-2 sm:px-3 sm:py-1.5 rounded-lg bg-[#00a884]/15 hover:bg-[#00a884] text-[#00a884] hover:text-white font-bold text-xs transition"
+                title="Start Video Call"
               >
-                <Video className="w-4 h-4" /> Call
+                <Video className="w-4.5 h-4.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Call</span>
               </button>
             )}
           </div>
@@ -322,7 +324,7 @@ export const ChatArea: React.FC = () => {
             return (
               <div 
                 key={msg.id} 
-                className={`flex items-end gap-2.5 ${isMe ? 'justify-end' : 'justify-start'} group relative px-1 py-0.5`}
+                className={`flex items-end gap-2.5 ${isMe ? 'justify-end' : 'justify-start'} group relative px-1 py-0.5 animate-message-pop`}
               >
                 {/* Message block */}
                 <div className={`flex flex-col max-w-[75%] ${isMe ? 'items-end' : 'items-start'}`}>

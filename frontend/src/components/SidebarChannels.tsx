@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useChatStore } from '../store/useChatStore';
 import type { Message } from '../store/useChatStore';
-import { useAuthStore, API_BASE } from '../store/useAuthStore';
+import { useAuthStore, API_BASE, type User } from '../store/useAuthStore';
 import { Settings, LogOut, Search, MessageSquare, CheckCheck, X } from 'lucide-react';
 
 export const SidebarChannels: React.FC = () => {
@@ -18,6 +18,31 @@ export const SidebarChannels: React.FC = () => {
   const [customStatus, setCustomStatus] = useState(user?.statusMessage || '');
   const [avatarUrlInput, setAvatarUrlInput] = useState(user?.avatarUrl || '');
   const [presenceMenuOpen, setPresenceMenuOpen] = useState(false);
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+
+  // Search backend when query changes (debounced)
+  useEffect(() => {
+    const searchBackend = async () => {
+      if (!filterQuery.trim() || !token) {
+        setSearchResults([]);
+        return;
+      }
+      try {
+        const response = await fetch(`${API_BASE}/users/search?query=${encodeURIComponent(filterQuery.trim())}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setSearchResults(data);
+        }
+      } catch (e) {
+        console.error("Search failed", e);
+      }
+    };
+
+    const timeout = setTimeout(searchBackend, 300);
+    return () => clearTimeout(timeout);
+  }, [filterQuery, token]);
 
   // Fetch friends (contacts) on load or when token changes
   useEffect(() => {
@@ -85,10 +110,18 @@ export const SidebarChannels: React.FC = () => {
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
   };
 
-  // Filter contacts based on search query
-  const filteredContacts = friends.filter((contact) =>
-    contact.username.toLowerCase().includes(filterQuery.toLowerCase())
-  );
+  // Filter local contacts based on search query
+  const filteredContacts = [...friends.filter((contact) =>
+    contact.username.toLowerCase().includes(filterQuery.toLowerCase()) ||
+    contact.userTag?.toLowerCase().includes(filterQuery.toLowerCase())
+  )];
+
+  // Merge backend search results
+  searchResults.forEach((res) => {
+    if (!filteredContacts.some((c) => c.id === res.id)) {
+      filteredContacts.push(res);
+    }
+  });
 
   return (
     <div className="w-full h-full bg-[#111b21] flex flex-col justify-between border-r border-[#222e35] font-sans select-none text-slate-100">
@@ -114,9 +147,15 @@ export const SidebarChannels: React.FC = () => {
             <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#202c33] ${getPresenceColor(user?.presence)}`} />
           </div>
 
-          <div className="flex flex-col min-w-0">
+          <div className="flex flex-col min-w-0 gap-0.5">
             <span className="text-sm font-bold text-slate-200 truncate">{user?.username}</span>
-            <span className="text-[10px] text-[#8696a0] truncate font-medium">
+            <span 
+              className="text-[10px] text-[#00a884] font-bold truncate select-all cursor-pointer hover:underline"
+              title="Click to select and copy your unique ID"
+            >
+              {user?.userTag ? `@${user.userTag}` : `@${user?.username}`}
+            </span>
+            <span className="text-[9px] text-[#8696a0] truncate font-medium">
               {user?.statusMessage || "Online"}
             </span>
           </div>
@@ -257,7 +296,14 @@ export const SidebarChannels: React.FC = () => {
                   </div>
 
                   <div className="flex flex-col min-w-0 gap-0.5">
-                    <span className="text-sm font-semibold text-slate-100 truncate">{contact.username}</span>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-sm font-semibold text-slate-100 truncate">{contact.username}</span>
+                      {contact.userTag && (
+                        <span className="text-[10px] text-[#00a884] font-medium shrink-0">
+                          @{contact.userTag}
+                        </span>
+                      )}
+                    </div>
                     <span className={`text-[11px] truncate font-medium ${
                       isTyping ? 'text-[#00a884] font-bold animate-pulse' : 'text-[#8696a0]'
                     }`}>
@@ -303,6 +349,18 @@ export const SidebarChannels: React.FC = () => {
             <p className="text-xs text-[#8696a0] mb-4">Set your avatar URL and status text visible to other operators.</p>
             
             <form onSubmit={handleUpdateProfile} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-[#8696a0] mb-1.5">
+                  Your Unique ID (Share with friends)
+                </label>
+                <div 
+                  className="w-full px-3 py-2 text-xs rounded-lg bg-[#182229] border border-[#2f3b43] text-[#00a884] font-bold select-all cursor-pointer"
+                  title="Double-click to select and copy handle"
+                >
+                  {user?.userTag ? `@${user.userTag}` : `@${user?.username}`}
+                </div>
+              </div>
+
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-[#8696a0] mb-1.5">
                   Avatar Image URL

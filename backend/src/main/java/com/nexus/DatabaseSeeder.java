@@ -90,6 +90,7 @@ public class DatabaseSeeder implements CommandLineRunner {
         if (userRepository.findByUsername("nexus_ai").isEmpty()) {
             User nexusBot = User.builder()
                     .username("nexus_ai")
+                    .userTag("nexus_ai")
                     .email("bot@nexus.chat")
                     .password(passwordEncoder.encode("password123"))
                     .presence(User.PresenceStatus.ONLINE)
