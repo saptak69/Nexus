@@ -225,6 +225,15 @@ export const ChatArea: React.FC = () => {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const getPresenceColor = (presence?: string) => {
+    switch (presence) {
+      case 'ONLINE': return 'bg-[#00a884]'; // WhatsApp Green
+      case 'AWAY': return 'bg-[#e1ba10]'; // Honey Gold
+      case 'DND': return 'bg-[#ea0038]'; // Crimson Red
+      default: return 'bg-[#8696a0]'; // Muted Grey
+    }
+  };
+
   return (
     <div 
       ref={chatAreaRef}
@@ -245,10 +254,10 @@ export const ChatArea: React.FC = () => {
             {/* Back Button for mobile navigation */}
             <button
               onClick={() => setActiveDmUserId(null)}
-              className="md:hidden p-2 mr-2 text-[#aebac1] hover:text-white rounded-full hover:bg-[#374248] transition"
+              className="md:hidden p-1.5 mr-2 text-[#aebac1] hover:text-white rounded-full hover:bg-[#374248] transition flex items-center justify-center shrink-0"
               title="Back"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-5.5 h-5.5" />
             </button>
 
             {/* Active Contact profile picture */}
@@ -261,28 +270,29 @@ export const ChatArea: React.FC = () => {
                     {activeFriend.username.substring(0, 2).toUpperCase()}
                   </div>
                 )}
+                {/* Active State indicator */}
+                <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#202c33] ${getPresenceColor(activeFriend.presence)}`} />
               </div>
             )}
 
             <div className="flex flex-col min-w-0">
-              <span className="text-sm font-bold text-slate-100 truncate">{title}</span>
+              <span className="text-sm sm:text-base font-bold text-slate-100 truncate leading-tight">{title}</span>
               {subTitle && (
-                <span className="text-[11px] text-[#8696a0] truncate font-medium uppercase tracking-wider">
+                <span className="text-[10px] sm:text-[11px] text-[#8696a0] truncate font-medium uppercase tracking-wider leading-none mt-0.5">
                   {subTitle}
                 </span>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
             {showCallButton && (
               <button
                 onClick={handleDMCall}
-                className="flex items-center justify-center gap-1.5 p-2 sm:px-3 sm:py-1.5 rounded-lg bg-[#00a884]/15 hover:bg-[#00a884] text-[#00a884] hover:text-white font-bold text-xs transition"
+                className="p-2 text-[#00a884] hover:text-[#00c298] hover:bg-[#374248]/40 rounded-full transition flex items-center justify-center shrink-0"
                 title="Start Video Call"
               >
-                <Video className="w-4.5 h-4.5 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Call</span>
+                <Video className="w-5.5 h-5.5" />
               </button>
             )}
           </div>
