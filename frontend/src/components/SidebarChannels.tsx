@@ -126,10 +126,10 @@ export const SidebarChannels: React.FC = () => {
   });
 
   return (
-    <div className="w-full h-full bg-[#111b21] flex flex-col justify-between border-r border-[#222e35] font-sans select-none text-slate-100">
+    <div className="w-full h-full bg-zinc-950 flex flex-col justify-between border-r border-zinc-900 font-sans select-none text-zinc-100">
       
       {/* 1. Header Block (Sleek User Profile and Tools) */}
-      <div className="h-16 px-4 flex items-center justify-between bg-[#202c33] border-b border-[#222e35] shrink-0">
+      <div className="h-16 px-4 flex items-center justify-between bg-zinc-950 border-b border-zinc-900 shrink-0">
         
         {/* Left: User info and Presence menu trigger */}
         <div className="flex items-center gap-3 min-w-0">
@@ -138,26 +138,26 @@ export const SidebarChannels: React.FC = () => {
               <img
                 src={user.avatarUrl}
                 alt={user.username}
-                className="w-10 h-10 rounded-full object-cover border border-white/10 group-hover:opacity-85 transition"
+                className="w-10 h-10 rounded-full object-cover border border-white/5 group-hover:opacity-85 transition"
               />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-[#005c4b] flex items-center justify-center font-bold text-white text-sm group-hover:opacity-85 transition">
+              <div className="w-10 h-10 rounded-full bg-zinc-900 flex items-center justify-center font-bold text-white text-sm group-hover:opacity-85 transition">
                 {user?.username?.substring(0, 2).toUpperCase()}
               </div>
             )}
             {/* Online Status Ring */}
-            <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#202c33] ${getPresenceColor(user?.presence)}`} />
+            <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-zinc-950 ${getPresenceColor(user?.presence)}`} />
           </div>
 
           <div className="flex flex-col min-w-0 gap-0.5">
-            <span className="text-sm font-bold text-slate-200 truncate">{user?.username}</span>
+            <span className="text-sm font-bold text-zinc-100 truncate">{user?.username}</span>
             <span 
-              className="text-[10px] text-[#00a884] font-bold truncate select-all cursor-pointer hover:underline"
+              className="text-[10px] text-indigo-400 font-bold truncate select-all cursor-pointer hover:underline"
               title="Click to select and copy your unique ID"
             >
               {user?.userTag ? `@${user.userTag}` : `@${user?.username}`}
             </span>
-            <span className="text-[9px] text-[#8696a0] truncate font-medium">
+            <span className="text-[9px] text-zinc-500 truncate font-semibold">
               {user?.statusMessage || "Online"}
             </span>
           </div>
@@ -171,7 +171,7 @@ export const SidebarChannels: React.FC = () => {
               setAvatarUrlInput(user?.avatarUrl || '');
               setShowProfileModal(true);
             }}
-            className="p-2 text-[#aebac1] hover:text-white hover:bg-[#374248] rounded-full transition"
+            className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-full transition"
             title="Profile Settings"
           >
             <Settings className="w-5 h-5" />
@@ -179,7 +179,7 @@ export const SidebarChannels: React.FC = () => {
           
           <button
             onClick={logout}
-            className="p-2 text-[#aebac1] hover:text-red-400 hover:bg-[#374248] rounded-full transition"
+            className="p-2 text-zinc-400 hover:text-red-400 hover:bg-zinc-900 rounded-full transition"
             title="Logout"
           >
             <LogOut className="w-5 h-5" />
@@ -188,59 +188,59 @@ export const SidebarChannels: React.FC = () => {
 
         {/* Presence Selector Dropdown */}
         {presenceMenuOpen && (
-          <div className="absolute top-[60px] left-3 z-50 w-48 rounded-xl bg-[#233138] border border-[#2f3b43] p-1.5 shadow-2xl">
-            <div className="text-[9px] font-bold text-[#8696a0] px-2 py-1 uppercase tracking-wider">Set Status</div>
+          <div className="absolute top-[60px] left-3 z-50 w-48 rounded-2xl bg-zinc-900 border border-zinc-800 p-1.5 shadow-2xl animate-scale-in">
+            <div className="text-[9px] font-bold text-zinc-500 px-2.5 py-1.5 uppercase tracking-wider">Set Status</div>
             <button
               onClick={() => { updatePresence('ONLINE'); setPresenceMenuOpen(false); }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left rounded-lg hover:bg-[#182229] text-slate-200 font-semibold"
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left rounded-xl hover:bg-zinc-805 text-zinc-200 font-semibold transition"
             >
-              <div className="w-2.5 h-2.5 rounded-full bg-[#00a884]" /> Online
+              <div className="w-2.5 h-2.5 rounded-full bg-[#10b981]" /> Online
             </button>
             <button
               onClick={() => { updatePresence('AWAY'); setPresenceMenuOpen(false); }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left rounded-lg hover:bg-[#182229] text-slate-200 font-semibold"
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left rounded-xl hover:bg-zinc-805 text-zinc-200 font-semibold transition"
             >
-              <div className="w-2.5 h-2.5 rounded-full bg-[#e1ba10]" /> Idle / Away
+              <div className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]" /> Idle / Away
             </button>
             <button
               onClick={() => { updatePresence('DND'); setPresenceMenuOpen(false); }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left rounded-lg hover:bg-[#182229] text-slate-200 font-semibold"
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left rounded-xl hover:bg-zinc-805 text-zinc-200 font-semibold transition"
             >
-              <div className="w-2.5 h-2.5 rounded-full bg-[#ea0038]" /> Do Not Disturb
+              <div className="w-2.5 h-2.5 rounded-full bg-[#f43f5e]" /> Do Not Disturb
             </button>
             <button
               onClick={() => { updatePresence('OFFLINE'); setPresenceMenuOpen(false); }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left rounded-lg hover:bg-[#182229] text-slate-200 font-semibold"
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left rounded-xl hover:bg-zinc-805 text-zinc-200 font-semibold transition"
             >
-              <div className="w-2.5 h-2.5 rounded-full bg-[#8696a0]" /> Offline / Invisible
+              <div className="w-2.5 h-2.5 rounded-full bg-[#71717a]" /> Offline / Invisible
             </button>
           </div>
         )}
       </div>
 
-      {/* 2. WhatsApp Search Input Box */}
-      <div className="p-2 bg-[#111b21] border-b border-[#222e35] shrink-0">
+      {/* 2. Modern Search Input Box */}
+      <div className="p-3 bg-zinc-950 border-b border-zinc-900 shrink-0">
         <div className="relative flex items-center">
-          <span className="absolute left-3 text-[#8696a0]">
-            <Search className="w-4.5 h-4.5" />
+          <span className="absolute left-3 text-zinc-500">
+            <Search className="w-4 h-4" />
           </span>
           <input
             type="text"
             value={filterQuery}
             onChange={(e) => setFilterQuery(e.target.value)}
-            placeholder="Search or start new chat"
-            className="w-full pl-10 pr-4 py-1.5 text-xs bg-[#202c33] border-none rounded-lg text-slate-200 placeholder-[#8696a0] focus:outline-none focus:ring-1 focus:ring-[#00a884] font-medium"
+            placeholder="Search users..."
+            className="w-full pl-9 pr-4 py-2 text-xs bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-700 transition font-medium"
           />
         </div>
       </div>
 
       {/* 3. Conversations/Contacts Inbox List */}
-      <div className="flex-1 overflow-y-auto bg-[#111b21] divide-y divide-[#222e35]">
+      <div className="flex-1 overflow-y-auto bg-zinc-950 py-2 space-y-1">
         {filteredContacts.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-[#8696a0] p-4 text-center gap-2">
-            <MessageSquare className="w-12 h-12 text-[#2f3b43]" />
-            <span className="text-xs font-semibold">No contacts found</span>
-            <p className="text-[10px] text-[#667781] max-w-[200px]">Make sure other users are registered on your server.</p>
+          <div className="h-full flex flex-col items-center justify-center text-zinc-500 p-4 text-center gap-2">
+            <MessageSquare className="w-10 h-10 text-zinc-800" />
+            <span className="text-xs font-semibold text-zinc-400">No contacts found</span>
+            <p className="text-[10px] text-zinc-600 max-w-[200px]">Make sure other users are registered on the system.</p>
           </div>
         ) : (
           filteredContacts.map((contact) => {
@@ -275,8 +275,10 @@ export const SidebarChannels: React.FC = () => {
               <div
                 key={contact.id}
                 onClick={() => setActiveDmUserId(contact.id)}
-                className={`flex items-center justify-between px-3 py-3 cursor-pointer transition select-none ${
-                  isSelected ? 'bg-[#2a3942]' : 'hover:bg-[#202c33]'
+                className={`flex items-center justify-between mx-2.5 px-3 py-2.5 cursor-pointer rounded-xl select-none card-interactive border ${
+                  isSelected 
+                    ? 'bg-zinc-900 border-zinc-800 shadow-sm' 
+                    : 'bg-transparent border-transparent hover:bg-zinc-900/30'
                 }`}
               >
                 {/* Profile photo and online state */}
@@ -286,28 +288,28 @@ export const SidebarChannels: React.FC = () => {
                       <img
                         src={contact.avatarUrl}
                         alt={contact.username}
-                        className="w-12 h-12 rounded-full object-cover"
+                        className="w-11 h-11 rounded-full object-cover border border-white/5"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-[#3d4b53] flex items-center justify-center font-bold text-slate-200 text-sm">
+                      <div className="w-11 h-11 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-zinc-300 text-sm">
                         {contact.username.substring(0, 2).toUpperCase()}
                       </div>
                     )}
                     {/* Active State indicator */}
-                    <div className={`absolute bottom-0.5 right-0.5 w-3 h-3 rounded-full border border-[#111b21] ${getPresenceColor(contact.presence)}`} />
+                    <div className={`absolute bottom-0.5 right-0.5 w-3 h-3 rounded-full border-2 border-zinc-950 ${getPresenceColor(contact.presence)}`} />
                   </div>
 
                   <div className="flex flex-col min-w-0 gap-0.5">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-sm font-semibold text-slate-100 truncate">{contact.username}</span>
+                      <span className="text-xs sm:text-sm font-bold text-zinc-100 truncate">{contact.username}</span>
                       {contact.userTag && (
-                        <span className="text-[10px] text-[#00a884] font-medium shrink-0">
-                          @{contact.userTag}
+                        <span className="text-[9px] text-indigo-400 font-semibold shrink-0">
+                          @{contact.userTag.split('_')[0]}
                         </span>
                       )}
                     </div>
-                    <span className={`text-[11px] truncate font-medium ${
-                      isTyping ? 'text-[#00a884] font-bold animate-pulse' : 'text-[#8696a0]'
+                    <span className={`text-[10px] sm:text-[11px] truncate font-medium ${
+                      isTyping ? 'text-indigo-400 font-bold animate-pulse' : 'text-zinc-400'
                     }`}>
                       {lastMsgText}
                     </span>
@@ -317,12 +319,12 @@ export const SidebarChannels: React.FC = () => {
                 {/* Date & Unread marker info */}
                 {lastMsg && !isTyping && (
                   <div className="flex flex-col items-end shrink-0 gap-1.5 pl-2 text-right">
-                    <span className="text-[10px] text-[#8696a0] font-medium">
+                    <span className="text-[9px] text-zinc-500 font-semibold uppercase tracking-wider">
                       {formatLastMessageTime(lastMsg.createdAt)}
                     </span>
                     {/* Show tick indicators if sent by current user */}
                     {lastMsg.sender.id === user?.id && (
-                      <span className="text-[#53bdeb]">
+                      <span className="text-indigo-400">
                         <CheckCheck className="w-3.5 h-3.5" />
                       </span>
                     )}
@@ -336,27 +338,27 @@ export const SidebarChannels: React.FC = () => {
 
       {/* 4. Edit Profile Modal Overlay */}
       {showProfileModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4">
-          <div className="w-full max-w-sm p-6 rounded-2xl bg-[#222e35] border border-[#2f3b43] shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-sm p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-2xl animate-scale-in">
             <div className="flex justify-between items-center mb-3">
-              <h2 className="text-lg font-bold text-slate-100">Profile Settings</h2>
+              <h2 className="text-base font-extrabold text-zinc-100">Profile Settings</h2>
               <button 
                 onClick={() => setShowProfileModal(false)} 
-                className="text-[#aebac1] hover:text-white p-1 hover:bg-[#374248] rounded-full transition"
+                className="text-zinc-400 hover:text-white p-1 hover:bg-zinc-800 rounded-full transition"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
             
-            <p className="text-xs text-[#8696a0] mb-4">Set your avatar URL and status text visible to other operators.</p>
+            <p className="text-[11px] text-zinc-400 mb-4">Set your avatar URL and status text visible to other operators.</p>
             
             <form onSubmit={handleUpdateProfile} className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-[#8696a0] mb-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
                   Your Unique ID (Share with friends)
                 </label>
                 <div 
-                  className="w-full px-3 py-2 text-xs rounded-lg bg-[#182229] border border-[#2f3b43] text-[#00a884] font-bold select-all cursor-pointer"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-zinc-950 border border-zinc-900 text-indigo-400 font-bold select-all cursor-pointer"
                   title="Double-click to select and copy handle"
                 >
                   {user?.userTag ? `@${user.userTag}` : `@${user?.username}`}
@@ -364,7 +366,7 @@ export const SidebarChannels: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-[#8696a0] mb-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
                   Avatar Image URL
                 </label>
                 <input
@@ -372,12 +374,12 @@ export const SidebarChannels: React.FC = () => {
                   value={avatarUrlInput}
                   onChange={(e) => setAvatarUrlInput(e.target.value)}
                   placeholder="https://example.com/avatar.jpg"
-                  className="w-full px-3 py-2 text-xs rounded-lg bg-[#2a3942] border border-[#2f3b43] text-white focus:outline-none focus:border-[#00a884] font-medium"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 font-medium transition"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-[#8696a0] mb-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
                   About Status
                 </label>
                 <input
@@ -385,7 +387,7 @@ export const SidebarChannels: React.FC = () => {
                   value={customStatus}
                   onChange={(e) => setCustomStatus(e.target.value)}
                   placeholder="Hey there! I am using Nexus Chat."
-                  className="w-full px-3 py-2 text-xs rounded-lg bg-[#2a3942] border border-[#2f3b43] text-white focus:outline-none focus:border-[#00a884] font-medium"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-zinc-950 border border-zinc-850 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 font-medium transition"
                 />
               </div>
 
@@ -393,13 +395,13 @@ export const SidebarChannels: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowProfileModal(false)}
-                  className="px-4 py-2 rounded-lg bg-[#374248] hover:bg-[#2a3942] text-slate-200 text-xs font-semibold transition"
+                  className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-[#00a884] hover:bg-[#00c298] text-white text-xs font-bold transition shadow-md shadow-[#00a884]/20"
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20"
                 >
                   Save Details
                 </button>

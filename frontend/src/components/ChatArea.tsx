@@ -257,10 +257,10 @@ export const ChatArea: React.FC = () => {
 
   const getPresenceColor = (presence?: string) => {
     switch (presence) {
-      case 'ONLINE': return 'bg-[#00a884]'; // WhatsApp Green
-      case 'AWAY': return 'bg-[#e1ba10]'; // Honey Gold
-      case 'DND': return 'bg-[#ea0038]'; // Crimson Red
-      default: return 'bg-[#8696a0]'; // Muted Grey
+      case 'ONLINE': return 'bg-[#10b981]'; // Emerald Green
+      case 'AWAY': return 'bg-[#f59e0b]'; // Amber Gold
+      case 'DND': return 'bg-[#f43f5e]'; // Rose Red
+      default: return 'bg-[#71717a]'; // Zinc Grey
     }
   };
 
@@ -270,24 +270,24 @@ export const ChatArea: React.FC = () => {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`flex-1 h-screen bg-[#0b141a] flex flex-col justify-between overflow-hidden relative ${
-        dragOver ? 'border-2 border-dashed border-[#00a884] bg-[#00a884]/5' : ''
+      className={`flex-1 h-screen bg-zinc-950 flex flex-col justify-between overflow-hidden relative ${
+        dragOver ? 'border-2 border-dashed border-indigo-500 bg-indigo-500/5' : ''
       }`}
     >
       {/* Premium ambient glow background */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#005c4b]/15 via-[#0b141a] to-[#0b141a] pointer-events-none z-0" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-500/10 via-zinc-950 to-zinc-950 pointer-events-none z-0" />
       
       {/* Header */}
       {title && (
-        <div className="h-16 px-4 border-b border-[#222e35] flex items-center justify-between bg-[#202c33] shrink-0 z-10 relative shadow-sm">
-          <div className="flex items-center min-w-0">
+        <div className="h-16 px-4 border-b border-zinc-900 flex items-center justify-between bg-zinc-950/80 backdrop-blur-md shrink-0 z-10 relative shadow-sm">
+          <div className="flex items-center min-w-0 flex-1 mr-4">
             {/* Back Button for mobile navigation */}
             <button
               onClick={() => setActiveDmUserId(null)}
-              className="md:hidden p-1.5 mr-2 text-[#aebac1] hover:text-white rounded-full hover:bg-[#374248] transition flex items-center justify-center shrink-0"
+              className="md:hidden p-1.5 mr-2 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-900 transition flex items-center justify-center shrink-0"
               title="Back"
             >
-              <ArrowLeft className="w-5.5 h-5.5" />
+              <ArrowLeft className="w-5 h-5" />
             </button>
 
             {/* Active Contact profile picture */}
@@ -296,33 +296,33 @@ export const ChatArea: React.FC = () => {
                 {activeFriend.avatarUrl ? (
                   <img src={activeFriend.avatarUrl} alt={activeFriend.username} className="w-10 h-10 rounded-full object-cover border border-white/5" />
                 ) : (
-                  <div className="w-10 h-10 rounded-full bg-[#3d4b53] flex items-center justify-center font-bold text-white text-sm">
+                  <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-white text-sm">
                     {activeFriend.username.substring(0, 2).toUpperCase()}
                   </div>
                 )}
                 {/* Active State indicator */}
-                <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#202c33] ${getPresenceColor(activeFriend.presence)}`} />
+                <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-zinc-950 ${getPresenceColor(activeFriend.presence)}`} />
               </div>
             )}
 
             <div className="flex flex-col min-w-0">
-              <span className="text-sm sm:text-base font-bold text-slate-100 truncate leading-tight">{title}</span>
+              <span className="text-sm sm:text-base font-bold text-zinc-100 truncate leading-tight">{title}</span>
               {subTitle && (
-                <span className="text-[10px] sm:text-[11px] text-[#8696a0] truncate font-medium uppercase tracking-wider leading-none mt-0.5">
+                <span className="text-[10px] sm:text-[11px] text-zinc-500 truncate font-semibold uppercase tracking-wider leading-none mt-1">
                   {subTitle}
                 </span>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             {showCallButton && (
               <button
                 onClick={handleDMCall}
-                className="p-2 text-[#00a884] hover:text-[#00c298] hover:bg-[#374248]/40 rounded-full transition flex items-center justify-center shrink-0"
+                className="p-2.5 text-indigo-400 hover:text-indigo-300 hover:bg-zinc-900 rounded-full transition flex items-center justify-center shrink-0"
                 title="Start Video Call"
               >
-                <Video className="w-5.5 h-5.5" />
+                <Video className="w-5 h-5" />
               </button>
             )}
           </div>
@@ -331,9 +331,9 @@ export const ChatArea: React.FC = () => {
 
       {/* Drag Over Overlay */}
       {dragOver && (
-        <div className="absolute inset-0 bg-[#00a884]/10 backdrop-blur-xs flex items-center justify-center pointer-events-none z-40">
-          <div className="bg-[#222e35] border border-[#2f3b43] p-6 rounded-2xl flex flex-col items-center gap-3 shadow-2xl">
-            <Paperclip className="w-10 h-10 text-[#00a884] animate-bounce" />
+        <div className="absolute inset-0 bg-indigo-500/10 backdrop-blur-xs flex items-center justify-center pointer-events-none z-40">
+          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl flex flex-col items-center gap-3 shadow-2xl">
+            <Paperclip className="w-10 h-10 text-indigo-500 animate-bounce" />
             <span className="text-sm font-bold text-white">Drop files to attach to chat</span>
           </div>
         </div>
@@ -369,19 +369,19 @@ export const ChatArea: React.FC = () => {
                 {/* Message block */}
                 <div className={`flex flex-col max-w-[75%] ${isMe ? 'items-end' : 'items-start'}`}>
                   
-                  {/* Message Bubble (WhatsApp Bubble Design) */}
-                  <div className={`relative rounded-2xl px-4 py-2 text-[13px] leading-relaxed shadow-md break-words ${
+                  {/* Message Bubble (Premium Snappy Design) */}
+                  <div className={`relative rounded-2xl px-4 py-2.5 text-xs font-medium leading-relaxed shadow-sm break-words transition-all duration-200 ${
                     isMe 
-                      ? 'bg-[#005c4b] text-[#e9edef] rounded-tr-none' 
-                      : 'bg-[#202c33] text-[#e9edef] rounded-tl-none border border-[#2f3b43]'
-                  } ${msg.deleted ? 'italic text-[#8696a0] bg-opacity-50' : ''}`}>
+                      ? 'bg-indigo-600 text-white rounded-tr-none' 
+                      : 'bg-zinc-900 text-zinc-100 rounded-tl-none border border-zinc-800'
+                  } ${msg.deleted ? 'italic text-zinc-500 bg-opacity-40' : ''}`}>
                     
                     {/* Thread reply details inside the bubble */}
                     {msg.parentMessage && (
-                      <div className={`mb-2 p-2 rounded text-[10px] border-l-2 flex flex-col gap-0.5 ${
+                      <div className={`mb-2 p-2.5 rounded-xl text-[10px] border-l-2 flex flex-col gap-0.5 ${
                         isMe 
-                          ? 'bg-black/15 border-white/30 text-[#e9edef]' 
-                          : 'bg-black/25 border-[#00a884] text-slate-300'
+                          ? 'bg-black/15 border-white/20 text-zinc-200' 
+                          : 'bg-black/20 border-indigo-500 text-zinc-300'
                       }`}>
                         <span className="font-bold text-white">@{msg.parentMessage.sender.username}</span>
                         <span className="truncate max-w-[220px]">{msg.parentMessage.content}</span>
@@ -395,25 +395,25 @@ export const ChatArea: React.FC = () => {
                           type="text"
                           value={editText}
                           onChange={(e) => setEditText(e.target.value)}
-                          className="flex-1 px-2.5 py-1 text-xs rounded bg-black/30 border border-white/10 text-white focus:outline-none focus:border-[#00a884]"
+                          className="flex-1 px-2.5 py-1 text-xs rounded-lg bg-black/30 border border-white/10 text-white focus:outline-none focus:border-indigo-500"
                         />
                         <button
                           onClick={() => handleEditSubmit(msg.id)}
-                          className="bg-[#00a884] hover:bg-[#00c298] text-white px-2 py-1 rounded text-[10px] font-bold transition"
+                          className="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold transition"
                         >
                           Save
                         </button>
                         <button
                           onClick={() => setEditingMessageId(null)}
-                          className="bg-white/10 hover:bg-white/20 text-white px-2 py-1 rounded text-[10px] font-bold transition"
+                          className="bg-white/10 hover:bg-white/20 text-white px-2 py-1 rounded-lg text-[10px] font-bold transition"
                         >
                           X
                         </button>
                       </div>
                     ) : (
                       <p className={`text-[13px] leading-relaxed break-words ${
-                        isMe ? 'text-[#e9edef]' : 'text-[#e9edef]'
-                      } ${msg.deleted ? 'italic text-[#8696a0]' : ''}`}>
+                        msg.deleted ? 'italic text-zinc-500' : ''
+                      }`}>
                         {msg.content}
                       </p>
                     )}
@@ -447,10 +447,10 @@ export const ChatArea: React.FC = () => {
                             rel="noreferrer"
                             className="flex items-center gap-2.5 p-2.5 rounded-lg bg-black/25 hover:bg-black/35 transition text-[11px] text-slate-100"
                           >
-                            <FileText className="w-5 h-5 text-[#00a884] shrink-0" />
+                            <FileText className="w-5 h-5 text-indigo-400 shrink-0" />
                             <div className="flex flex-col min-w-0">
                               <span className="text-white truncate font-medium">{msg.fileName}</span>
-                              <span className="text-[9px] text-[#8696a0] uppercase">{msg.fileType || 'Attachment'}</span>
+                              <span className="text-[9px] text-zinc-400 uppercase">{msg.fileType || 'Attachment'}</span>
                             </div>
                           </a>
                         )}
@@ -549,12 +549,12 @@ export const ChatArea: React.FC = () => {
       </div>
 
       {/* Bottom Input Area */}
-      <div className="p-3 bg-[#202c33] border-t border-[#222e35] shrink-0 relative z-10">
+      <div className="p-3 bg-zinc-950 border-t border-zinc-900 shrink-0 relative z-10">
         
         {/* Reply Indicator banner */}
         {replyToMessage && (
-          <div className="flex items-center justify-between px-3 py-1.5 bg-[#00a884]/15 border-l-4 border-[#00a884] text-[11px] text-[#00a884] mb-2 rounded-r">
-            <span className="truncate">Replying to @{replyToMessage.sender.username}: {replyToMessage.content}</span>
+          <div className="flex items-center justify-between px-3 py-1.5 bg-indigo-500/10 border-l-4 border-indigo-500 text-[11px] text-indigo-400 mb-2 rounded-r">
+            <span className="truncate font-semibold">Replying to @{replyToMessage.sender.username}: {replyToMessage.content}</span>
             <button onClick={() => setReplyToMessage(null)}>
               <X className="w-4 h-4 hover:text-white transition" />
             </button>
@@ -563,14 +563,14 @@ export const ChatArea: React.FC = () => {
 
         {/* Attached File Display banner */}
         {attachedFile && (
-          <div className="flex items-center justify-between p-2 bg-[#182229] border border-[#2f3b43] text-[11px] text-slate-300 mb-2 rounded-lg">
+          <div className="flex items-center justify-between p-2.5 bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 mb-2 rounded-xl">
             <div className="flex items-center gap-2 truncate">
               {attachedFile.type.startsWith('image/') ? (
-                <Image className="w-4 h-4 text-[#00a884]" />
+                <Image className="w-4 h-4 text-indigo-400" />
               ) : (
-                <FileText className="w-4 h-4 text-[#00a884]" />
+                <FileText className="w-4 h-4 text-indigo-400" />
               )}
-              <span className="text-white truncate font-medium">{attachedFile.name}</span>
+              <span className="text-white truncate font-semibold">{attachedFile.name}</span>
             </div>
             <button onClick={() => setAttachedFile(null)}>
               <X className="w-4 h-4 hover:text-red-400 transition" />
@@ -580,25 +580,25 @@ export const ChatArea: React.FC = () => {
 
         {/* Live Typing indicator */}
         {Object.keys(typingUsers).length > 0 && (
-          <div className="absolute top-[-24px] left-4 text-[10px] text-[#00a884] flex items-center gap-1.5 italic select-none bg-[#0b141a]/80 px-2 py-0.5 rounded-full backdrop-blur-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#00a884] animate-ping shrink-0" />
+          <div className="absolute top-[-24px] left-4 text-[10px] text-indigo-400 flex items-center gap-1.5 italic select-none bg-zinc-900 border border-zinc-800/80 px-2.5 py-0.5 rounded-full shadow-lg">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping shrink-0" />
             {Object.values(typingUsers).join(', ')} {Object.keys(typingUsers).length === 1 ? 'is' : 'are'} typing...
           </div>
         )}
 
         {/* Chat Entry Form */}
-        <form onSubmit={handleSend} className="flex gap-3 items-center">
+        <form onSubmit={handleSend} className="flex gap-2.5 items-center">
           
           {/* File upload button */}
           <button
             type="button"
             disabled={uploading}
             onClick={() => fileInputRef.current?.click()}
-            className="p-3 text-[#aebac1] hover:text-white rounded-xl hover:bg-[#374248] transition flex items-center justify-center shrink-0"
+            className="p-3 text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-900 transition flex items-center justify-center shrink-0"
             title="Attach file"
           >
             {uploading ? (
-              <div className="w-5 h-5 border-2 border-[#00a884]/30 border-t-[#00a884] rounded-full animate-spin"></div>
+              <div className="w-5 h-5 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
             ) : (
               <Paperclip className="w-5 h-5 rotate-45" />
             )}
@@ -622,11 +622,11 @@ export const ChatArea: React.FC = () => {
                   handleSend(e);
                 }
               }}
-              placeholder="Type a message"
-              className="w-full pl-4 pr-10 py-3 text-xs bg-[#2a3942] border-none rounded-xl text-slate-200 placeholder-[#8696a0] focus:outline-none focus:ring-1 focus:ring-[#2a3942] transition resize-none max-h-24 font-medium"
+              placeholder="Message"
+              className="w-full pl-4 pr-10 py-3 text-xs bg-zinc-900 border border-zinc-800 focus:border-zinc-700 rounded-xl text-zinc-100 placeholder-zinc-500 focus:outline-none transition resize-none max-h-24 font-medium"
             />
             {/* Smile Emoji Shortcut (visual icon) */}
-            <span className="absolute right-3.5 inset-y-0 flex items-center text-[#aebac1] hover:text-white cursor-pointer select-none">
+            <span className="absolute right-3.5 inset-y-0 flex items-center text-zinc-400 hover:text-white cursor-pointer select-none">
               <Smile className="w-5 h-5" />
             </span>
           </div>
@@ -634,9 +634,9 @@ export const ChatArea: React.FC = () => {
           {/* Send Submit Button */}
           <button
             type="submit"
-            className="p-3 rounded-full bg-[#00a884] hover:bg-[#00c298] text-white transition shrink-0 flex items-center justify-center shadow-lg"
+            className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white transition shrink-0 flex items-center justify-center shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20"
           >
-            <Send className="w-4.5 h-4.5" />
+            <Send className="w-5 h-5" />
           </button>
 
         </form>
