@@ -32,9 +32,6 @@ public class MessageController {
     private final UserService userService;
     private final CloudinaryService cloudinaryService;
 
-    @Value("${nexus.upload.dir}")
-    private String uploadDir;
-
     public MessageController(MessageService messageService, UserService userService, CloudinaryService cloudinaryService) {
         this.messageService = messageService;
         this.userService = userService;

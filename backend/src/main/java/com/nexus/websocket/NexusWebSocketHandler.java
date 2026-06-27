@@ -50,16 +50,15 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        URI uri = session.getUri();
-        if (uri == null) {
-            session.close(CloseStatus.BAD_DATA);
-            return;
-        }
+        // 1. Try to read token from HttpOnly cookie
+        String token = getCookieFromSession(session, "jwt_token");
 
-        String query = uri.getQuery();
-        String token = null;
-        if (query != null && query.contains("token=")) {
-            token = query.split("token=")[1].split("&")[0];
+        // 2. Fall back to query parameter
+        if (token == null) {
+            URI uri = session.getUri();
+            if (uri != null) {
+                token = getParamFromQuery(uri.getQuery(), "token");
+            }
         }
 
         if (token == null || !tokenProvider.validateToken(token)) {
@@ -432,5 +431,33 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
         } catch (IOException e) {
             // Log socket send failure
         }
+    }
+
+    private String getCookieFromSession(WebSocketSession session, String cookieName) {
+        List<String> cookies = session.getHandshakeHeaders().get("cookie");
+        if (cookies != null) {
+            for (String cookieHeader : cookies) {
+                String[] pairs = cookieHeader.split(";");
+                for (String pair : pairs) {
+                    String[] parts = pair.trim().split("=");
+                    if (parts.length == 2 && parts[0].equals(cookieName)) {
+                        return parts[1];
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private String getParamFromQuery(String query, String paramName) {
+        if (query == null || query.isEmpty()) return null;
+        String[] pairs = query.split("&");
+        for (String pair : pairs) {
+            String[] idx = pair.split("=");
+            if (idx.length == 2 && idx[0].equals(paramName)) {
+                return idx[1];
+            }
+        }
+        return null;
     }
 }

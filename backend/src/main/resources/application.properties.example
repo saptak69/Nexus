@@ -1,7 +1,7 @@
 # Server configuration
 server.port=${PORT:8080}
 
-# Database configuration (PostgreSQL dev defaults - override using env variables)
+# Database configuration (PostgreSQL local dev defaults)
 spring.datasource.url=${DB_URL:jdbc:postgresql://localhost:5432/nexus_db}
 spring.datasource.driver-class-name=org.postgresql.Driver
 spring.datasource.username=${DB_USERNAME:postgres}
@@ -14,23 +14,19 @@ spring.jpa.show-sql=true
 spring.jpa.properties.hibernate.format_sql=true
 spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
 
-# Multipart file upload configuration
 spring.servlet.multipart.max-file-size=100MB
 spring.servlet.multipart.max-request-size=100MB
 
 # Custom JWT configuration (Provide a secure 256-bit hex key)
 nexus.jwt.secret=${JWT_SECRET:9a727c62b662d515a8b71d9d1c9d4b3c4f5e6d7c8b9a0a1b2c3d4e5f60718293}
-# JWT expiration: 86400000 ms = 24 hours
 nexus.jwt.expiration-ms=${JWT_EXPIRATION_MS:86400000}
 
 # Cloudinary Storage Configuration
 cloudinary.cloud-name=${CLOUDINARY_CLOUD_NAME:your_cloud_name}
 cloudinary.api-key=${CLOUDINARY_API_KEY:your_api_key}
 cloudinary.api-secret=${CLOUDINARY_API_SECRET:your_api_secret}
-cloudinary.url=${CLOUDINARY_URL:your_cloudinary_url}
+cloudinary.url=${CLOUDINARY_URL:cloudinary://your_api_key:your_api_secret@your_cloud_name}
 
 # Spring Boot Actuator Configuration (Monitoring & Observability)
 management.endpoints.web.exposure.include=health,info,metrics,prometheus
 management.endpoint.health.show-details=always
-
-

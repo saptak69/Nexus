@@ -56,11 +56,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private String getJwtFromRequest(HttpServletRequest request) {
+        // 1. Try reading from HttpOnly cookie
+        if (request.getCookies() != null) {
+            for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
+                if ("jwt_token".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+
+        // 2. Try reading from Authorization header
         String bearerToken = request.getHeader("Authorization");
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
         }
-        // Fallback for WebSocket handshakes passing token in query params
+
+        // 3. Fallback for WebSocket handshakes passing token in query params
         if (request.getRequestURI() != null && request.getRequestURI().startsWith("/ws")) {
             String tokenParam = request.getParameter("token");
             if (StringUtils.hasText(tokenParam)) {

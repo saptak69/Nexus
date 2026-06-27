@@ -40,7 +40,7 @@ export const API_BASE = import.meta.env.VITE_API_URL || (isLocal
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
-  token: localStorage.getItem('nexus_token'),
+  token: null,
   isAuthenticated: false,
   isAuthenticating: false,
   authError: null,
@@ -52,6 +52,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ usernameOrEmail, password }),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -60,7 +61,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       const data = await response.json();
-      localStorage.setItem('nexus_token', data.token);
       set({
         token: data.token,
         user: data.user,
@@ -81,6 +81,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, email, password }),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -89,7 +90,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       const data = await response.json();
-      localStorage.setItem('nexus_token', data.token);
       set({
         token: data.token,
         user: data.user,
@@ -104,7 +104,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: () => {
-    localStorage.removeItem('nexus_token');
+    fetch(`${API_BASE}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    }).catch(err => console.error('Error logging out from backend', err));
+
     set({
       user: null,
       token: null,
@@ -114,9 +118,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   loadUser: async () => {
-    const token = get().token;
+    let token = get().token;
+
+    // If no token in memory, attempt to bootstrap using HttpOnly refresh cookie
     if (!token) {
-      set({ isAuthenticated: false });
+      set({ isAuthenticating: true });
+      try {
+        const response = await fetch(`${API_BASE}/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          set({
+            token: data.token,
+            user: data.user,
+            isAuthenticated: true,
+            isAuthenticating: false,
+          });
+          return;
+        }
+      } catch (err) {
+        console.error('Failed to bootstrap session from cookie:', err);
+      }
+      set({ token: null, user: null, isAuthenticated: false, isAuthenticating: false });
       return;
     }
 
@@ -126,6 +152,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -135,7 +162,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = await response.json();
       set({ user, isAuthenticated: true, isAuthenticating: false });
     } catch (err) {
-      localStorage.removeItem('nexus_token');
       set({ token: null, user: null, isAuthenticated: false, isAuthenticating: false });
     }
   },

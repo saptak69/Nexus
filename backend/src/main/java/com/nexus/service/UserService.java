@@ -3,6 +3,8 @@ package com.nexus.service;
 import com.nexus.model.User;
 import com.nexus.repository.UserRepository;
 import com.nexus.security.JwtTokenProvider;
+import com.nexus.exception.BadRequestException;
+import com.nexus.exception.ResourceNotFoundException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -35,10 +37,10 @@ public class UserService {
     @Transactional
     public User registerUser(String username, String email, String password) {
         if (userRepository.existsByUsername(username)) {
-            throw new RuntimeException("Username is already taken!");
+            throw new BadRequestException("Username is already taken!");
         }
         if (userRepository.existsByEmail(email)) {
-            throw new RuntimeException("Email is already in use!");
+            throw new BadRequestException("Email is already in use!");
         }
 
         // Generate unique user tag (username + 4 random alphanumeric chars)
@@ -83,7 +85,7 @@ public class UserService {
     @Transactional
     public User updateStatusMessage(Long userId, String statusMessage) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         user.setStatusMessage(statusMessage);
         return userRepository.save(user);
     }
@@ -91,7 +93,7 @@ public class UserService {
     @Transactional
     public User updatePresence(Long userId, User.PresenceStatus presence) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         user.setPresence(presence);
         return userRepository.save(user);
     }
@@ -99,7 +101,7 @@ public class UserService {
     @Transactional
     public User updateAvatar(Long userId, String avatarUrl) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         user.setAvatarUrl(avatarUrl);
         return userRepository.save(user);
     }

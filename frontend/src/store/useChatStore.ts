@@ -3,6 +3,10 @@ import { useAuthStore, API_BASE } from './useAuthStore';
 import type { User } from './useAuthStore';
 import { useWebRTCStore } from './useWebRTCStore';
 
+let reconnectTimer: any = null;
+let reconnectAttempts = 0;
+let isExplicitlyClosed = false;
+
 export interface Server {
   id: number;
   name: string;
@@ -386,10 +390,18 @@ export const useChatStore = create<ChatState>((set, get) => {
           ? `ws://${window.location.hostname}:8080/ws?token=${token}`
           : `wss://nexus-production-ce6a.up.railway.app/ws?token=${token}`);
 
+      // Clear any pending reconnect timers
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      isExplicitlyClosed = false;
+
       const socket = new WebSocket(wsUrl);
 
       socket.onopen = () => {
         set({ connected: true, socket });
+        reconnectAttempts = 0; // Reset on successful connection
         // Rejoin active channel room if any
         const { activeChannelId } = get();
         if (activeChannelId) {
@@ -480,10 +492,26 @@ export const useChatStore = create<ChatState>((set, get) => {
 
       socket.onclose = () => {
         set({ connected: false, socket: null, activeRoomUsers: [] });
+
+        // Auto-reconnect if not explicitly closed by user logout / disconnect
+        if (!isExplicitlyClosed) {
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+          console.warn(`WebSocket closed. Reconnecting in ${delay}ms (attempt ${reconnectAttempts + 1})...`);
+          reconnectAttempts++;
+          reconnectTimer = setTimeout(() => {
+            get().connectSocket();
+          }, delay);
+        }
       };
     },
 
     disconnectSocket: () => {
+      isExplicitlyClosed = true;
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      reconnectAttempts = 0;
       const socket = get().socket;
       if (socket) {
         socket.close();
