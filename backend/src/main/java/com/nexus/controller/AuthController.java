@@ -12,6 +12,7 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import com.nexus.security.JwtTokenProvider;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -19,9 +20,11 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final UserService userService;
+    private final JwtTokenProvider tokenProvider;
 
-    public AuthController(UserService userService) {
+    public AuthController(UserService userService, JwtTokenProvider tokenProvider) {
         this.userService = userService;
+        this.tokenProvider = tokenProvider;
     }
 
     private void setJwtCookie(HttpServletResponse response, String token) {
