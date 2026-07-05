@@ -65,7 +65,8 @@ export const VideoGrid: React.FC = () => {
   const getGridCols = () => {
     if (totalParticipants <= 1) return 'grid-cols-1 md:grid-cols-1';
     if (totalParticipants === 2) return 'grid-cols-1 md:grid-cols-2';
-    if (totalParticipants <= 4) return 'grid-cols-2 md:grid-cols-2';
+    if (totalParticipants === 3) return 'grid-cols-1 md:grid-cols-3';
+    if (totalParticipants === 4) return 'grid-cols-2 md:grid-cols-2';
     return 'grid-cols-2 md:grid-cols-3';
   };
 

@@ -3,11 +3,14 @@ package com.nexus.websocket;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nexus.model.Channel;
 import com.nexus.model.Message;
+import com.nexus.model.Server;
 import com.nexus.model.User;
 import com.nexus.security.JwtTokenProvider;
 import com.nexus.service.ChannelService;
 import com.nexus.service.MessageService;
 import com.nexus.service.UserService;
+import com.nexus.service.FriendService;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -15,7 +18,6 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -27,10 +29,12 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
     private final UserService userService;
     private final ChannelService channelService;
     private final MessageService messageService;
+    private final FriendService friendService;
+    private final TaskExecutor taskExecutor;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // Map: userId -> WebSocketSession (to find open sockets for DMs / direct calls)
-    private final ConcurrentHashMap<Long, WebSocketSession> userSessions = new ConcurrentHashMap<>();
+    // Map: userId -> Set of WebSocketSessions (to allow multiple tabs/connections per user)
+    private final ConcurrentHashMap<Long, CopyOnWriteArraySet<WebSocketSession>> userSessions = new ConcurrentHashMap<>();
     
     // Map: sessionId -> userId (for reverse lookup on disconnect)
     private final ConcurrentHashMap<String, Long> sessionUsers = new ConcurrentHashMap<>();
@@ -41,25 +45,21 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
     public NexusWebSocketHandler(JwtTokenProvider tokenProvider,
                                  UserService userService,
                                  ChannelService channelService,
-                                 MessageService messageService) {
+                                 MessageService messageService,
+                                 FriendService friendService,
+                                 TaskExecutor taskExecutor) {
         this.tokenProvider = tokenProvider;
         this.userService = userService;
         this.channelService = channelService;
         this.messageService = messageService;
+        this.friendService = friendService;
+        this.taskExecutor = taskExecutor;
     }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         // 1. Try to read token from HttpOnly cookie
         String token = getCookieFromSession(session, "jwt_token");
-
-        // 2. Fall back to query parameter
-        if (token == null) {
-            URI uri = session.getUri();
-            if (uri != null) {
-                token = getParamFromQuery(uri.getQuery(), "token");
-            }
-        }
 
         if (token == null || !tokenProvider.validateToken(token)) {
             session.close(CloseStatus.POLICY_VIOLATION);
@@ -72,15 +72,17 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
 
         Long userId = user.getId();
         
-        // Save connection mapping
-        userSessions.put(userId, session);
+        boolean alreadyConnected = userSessions.containsKey(userId) && !userSessions.get(userId).isEmpty();
+        userSessions.computeIfAbsent(userId, k -> new CopyOnWriteArraySet<>()).add(session);
         sessionUsers.put(session.getId(), userId);
 
-        // Update user status to ONLINE in DB
-        userService.updatePresence(userId, User.PresenceStatus.ONLINE);
+        if (!alreadyConnected) {
+            // Update user status to ONLINE in DB
+            userService.updatePresence(userId, User.PresenceStatus.ONLINE);
 
-        // Broadcast presence change to all active friends / connected users
-        broadcastPresence(userId, "ONLINE");
+            // Broadcast presence change to all active friends / connected users
+            broadcastPresence(userId, "ONLINE");
+        }
     }
 
     @Override
@@ -127,26 +129,84 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
         Long userId = sessionUsers.remove(session.getId());
         if (userId != null) {
-            userSessions.remove(userId);
+            CopyOnWriteArraySet<WebSocketSession> sessions = userSessions.get(userId);
+            if (sessions != null) {
+                sessions.remove(session);
+                if (sessions.isEmpty()) {
+                    userSessions.remove(userId);
 
-            // Clean user from all video rooms
-            for (Map.Entry<String, CopyOnWriteArraySet<Long>> entry : roomParticipants.entrySet()) {
-                if (entry.getValue().remove(userId)) {
-                    broadcastRoomUpdate(entry.getKey());
+                    // Clean user from all video rooms
+                    for (Map.Entry<String, CopyOnWriteArraySet<Long>> entry : roomParticipants.entrySet()) {
+                        if (entry.getValue().remove(userId)) {
+                            broadcastRoomUpdate(entry.getKey());
+                        }
+                    }
+
+                    // Set user presence to OFFLINE in DB
+                    userService.updatePresence(userId, User.PresenceStatus.OFFLINE);
+
+                    // Broadcast status change
+                    broadcastPresence(userId, "OFFLINE");
                 }
             }
-
-            // Set user presence to OFFLINE in DB
-            userService.updatePresence(userId, User.PresenceStatus.OFFLINE);
-
-            // Broadcast status change
-            broadcastPresence(userId, "OFFLINE");
         }
+    }
+
+    private boolean isChannelMember(Long userId, Long channelId) {
+        if (channelId == null) return false;
+        Optional<Channel> channelOpt = channelService.getChannelById(channelId);
+        if (channelOpt.isEmpty()) return false;
+        Server server = channelOpt.get().getServer();
+        if (server == null) return false;
+        if (server.getOwner() != null && server.getOwner().getId().equals(userId)) {
+            return true;
+        }
+        return server.getMembers().stream()
+                .anyMatch(m -> m.getId().equals(userId));
+    }
+
+    private boolean isFriend(Long userId, Long friendId) {
+        if (userId.equals(friendId)) return true;
+        Optional<User> recipientOpt = userService.findById(friendId);
+        if (recipientOpt.isEmpty()) return false;
+        if (recipientOpt.get().getUsername().equals("nexus_ai")) {
+            return true;
+        }
+        return friendService.isFriend(userId, friendId);
     }
 
     private void handleJoinRoom(Long userId, Map<String, Object> payload) {
         String roomId = (String) payload.get("roomId");
         if (roomId == null) return;
+
+        // Authorization checks
+        if (roomId.startsWith("channel_")) {
+            try {
+                Long channelId = Long.valueOf(roomId.substring("channel_".length()));
+                if (!isChannelMember(userId, channelId)) {
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                return;
+            }
+        } else if (roomId.startsWith("dm_")) {
+            String[] parts = roomId.split("_");
+            if (parts.length == 3) {
+                try {
+                    Long id1 = Long.valueOf(parts[1]);
+                    Long id2 = Long.valueOf(parts[2]);
+                    if (!userId.equals(id1) && !userId.equals(id2)) {
+                        return;
+                    }
+                    Long partnerId = userId.equals(id1) ? id2 : id1;
+                    if (!isFriend(userId, partnerId)) {
+                        return;
+                    }
+                } catch (NumberFormatException e) {
+                    return;
+                }
+            }
+        }
 
         roomParticipants.putIfAbsent(roomId, new CopyOnWriteArraySet<>());
         roomParticipants.get(roomId).add(userId);
@@ -165,16 +225,13 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
 
                     CopyOnWriteArraySet<Long> participants = roomParticipants.get(roomId);
                     if (participants != null && !participants.contains(targetId)) {
-                        WebSocketSession targetSession = userSessions.get(targetId);
-                        if (targetSession != null && targetSession.isOpen()) {
-                            User sender = userService.findById(userId).orElse(null);
-                            Map<String, Object> callInvite = new HashMap<>();
-                            callInvite.put("type", "INCOMING_CALL");
-                            callInvite.put("senderId", userId);
-                            callInvite.put("senderName", sender != null ? sender.getUsername() : "Someone");
-                            callInvite.put("roomId", roomId);
-                            sendJson(targetSession, callInvite);
-                        }
+                        User sender = userService.findById(userId).orElse(null);
+                        Map<String, Object> callInvite = new HashMap<>();
+                        callInvite.put("type", "INCOMING_CALL");
+                        callInvite.put("senderId", userId);
+                        callInvite.put("senderName", sender != null ? sender.getUsername() : "Someone");
+                        callInvite.put("roomId", roomId);
+                        sendToUser(targetId, callInvite);
                     }
                 } catch (NumberFormatException e) {
                     // Ignore
@@ -194,22 +251,30 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
     }
 
     private void handleSignal(Long senderId, Map<String, Object> payload) {
-        // WebRTC Signaling routing: send candidate/offer/answer to target user
         Object targetIdObj = payload.get("targetId");
         if (targetIdObj == null) return;
 
         Long targetId = Long.valueOf(targetIdObj.toString());
-        WebSocketSession targetSession = userSessions.get(targetId);
 
-        if (targetSession != null && targetSession.isOpen()) {
-            Map<String, Object> forward = new HashMap<>();
-            forward.put("type", "SIGNAL");
-            forward.put("senderId", senderId);
-            forward.put("signal", payload.get("signal"));
-            forward.put("roomId", payload.get("roomId"));
-            
-            sendJson(targetSession, forward);
+        String roomId = (String) payload.get("roomId");
+        if (roomId != null) {
+            CopyOnWriteArraySet<Long> participants = roomParticipants.get(roomId);
+            if (participants == null || !participants.contains(senderId) || !participants.contains(targetId)) {
+                return;
+            }
+        } else {
+            if (!isFriend(senderId, targetId)) {
+                return;
+            }
         }
+
+        Map<String, Object> forward = new HashMap<>();
+        forward.put("type", "SIGNAL");
+        forward.put("senderId", senderId);
+        forward.put("signal", payload.get("signal"));
+        forward.put("roomId", payload.get("roomId"));
+        
+        sendToUser(targetId, forward);
     }
 
     private void handleDeclineCall(Long senderId, Map<String, Object> payload) {
@@ -217,23 +282,47 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
         if (targetIdObj == null) return;
 
         Long targetId = Long.valueOf(targetIdObj.toString());
-        WebSocketSession targetSession = userSessions.get(targetId);
 
-        if (targetSession != null && targetSession.isOpen()) {
-            User sender = userService.findById(senderId).orElse(null);
-            Map<String, Object> forward = new HashMap<>();
-            forward.put("type", "DECLINE_CALL");
-            forward.put("senderId", senderId);
-            forward.put("senderName", sender != null ? sender.getUsername() : "User");
-            forward.put("roomId", payload.get("roomId"));
-            
-            sendJson(targetSession, forward);
+        String roomId = (String) payload.get("roomId");
+        if (roomId != null) {
+            CopyOnWriteArraySet<Long> participants = roomParticipants.get(roomId);
+            if (participants == null || !participants.contains(senderId) || !participants.contains(targetId)) {
+                if (!isFriend(senderId, targetId)) {
+                    return;
+                }
+            }
+        } else {
+            if (!isFriend(senderId, targetId)) {
+                return;
+            }
         }
+
+        User sender = userService.findById(senderId).orElse(null);
+        Map<String, Object> forward = new HashMap<>();
+        forward.put("type", "DECLINE_CALL");
+        forward.put("senderId", senderId);
+        forward.put("senderName", sender != null ? sender.getUsername() : "User");
+        forward.put("roomId", payload.get("roomId"));
+        
+        sendToUser(targetId, forward);
     }
 
     private void handleTyping(Long senderId, Map<String, Object> payload) {
-        String roomId = (String) payload.get("roomId"); // Can be channel ID
+        String roomId = (String) payload.get("roomId");
         if (roomId == null) return;
+
+        if (roomId.startsWith("channel_")) {
+            try {
+                Long channelId = Long.valueOf(roomId.substring("channel_".length()));
+                if (!isChannelMember(senderId, channelId)) {
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                return;
+            }
+        } else {
+            return;
+        }
 
         CopyOnWriteArraySet<Long> participants = roomParticipants.get(roomId);
         if (participants == null) return;
@@ -245,13 +334,9 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
         typingEvent.put("isTyping", payload.get("isTyping"));
         typingEvent.put("roomId", roomId);
 
-        // Broadcast to everyone else in the room
         for (Long recipientId : participants) {
             if (!recipientId.equals(senderId)) {
-                WebSocketSession session = userSessions.get(recipientId);
-                if (session != null && session.isOpen()) {
-                    sendJson(session, typingEvent);
-                }
+                sendToUser(recipientId, typingEvent);
             }
         }
     }
@@ -265,6 +350,7 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
             Object channelIdObj = payload.get("channelId");
             Object recipientIdObj = payload.get("recipientId");
             Object parentIdObj = payload.get("parentId");
+            Object clientIdObj = payload.get("clientId");
 
             Long parentId = parentIdObj != null ? Long.valueOf(parentIdObj.toString()) : null;
             User sender = userService.findById(senderId)
@@ -274,12 +360,14 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
 
             if (channelIdObj != null) {
                 Long channelId = Long.valueOf(channelIdObj.toString());
+                if (!isChannelMember(senderId, channelId)) {
+                    return;
+                }
                 Channel channel = channelService.getChannelById(channelId)
                         .orElseThrow(() -> new RuntimeException("Channel not found"));
 
                 savedMessage = messageService.saveChannelMessage(content, sender, channel, parentId, fileUrl, fileName, fileType);
                 
-                // Broadcast to all active users in the channel room
                 String roomId = "channel_" + channelId;
                 CopyOnWriteArraySet<Long> members = roomParticipants.get(roomId);
                 
@@ -287,6 +375,9 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
                 chatEvent.put("type", "CHAT_MESSAGE");
                 chatEvent.put("message", savedMessage);
                 chatEvent.put("roomId", roomId);
+                if (clientIdObj != null) {
+                    chatEvent.put("clientId", clientIdObj.toString());
+                }
 
                 boolean senderNotified = false;
                 if (members != null) {
@@ -294,21 +385,17 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
                         if (memberId.equals(senderId)) {
                             senderNotified = true;
                         }
-                        WebSocketSession session = userSessions.get(memberId);
-                        if (session != null && session.isOpen()) {
-                            sendJson(session, chatEvent);
-                        }
+                        sendToUser(memberId, chatEvent);
                     }
                 }
-                // Fallback: ensure sender session receives the message event even if they aren't in the room list
                 if (!senderNotified) {
-                    WebSocketSession senderSession = userSessions.get(senderId);
-                    if (senderSession != null && senderSession.isOpen()) {
-                        sendJson(senderSession, chatEvent);
-                    }
+                    sendToUser(senderId, chatEvent);
                 }
             } else if (recipientIdObj != null) {
                 Long recipientId = Long.valueOf(recipientIdObj.toString());
+                if (!isFriend(senderId, recipientId)) {
+                    return;
+                }
                 User recipient = userService.findById(recipientId)
                         .orElseThrow(() -> new RuntimeException("Recipient not found"));
 
@@ -317,30 +404,22 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
                 Map<String, Object> chatEvent = new HashMap<>();
                 chatEvent.put("type", "CHAT_MESSAGE");
                 chatEvent.put("message", savedMessage);
-
-                // Send to recipient
-                WebSocketSession recipientSession = userSessions.get(recipientId);
-                if (recipientSession != null && recipientSession.isOpen()) {
-                    sendJson(recipientSession, chatEvent);
+                if (clientIdObj != null) {
+                    chatEvent.put("clientId", clientIdObj.toString());
                 }
 
-                // Send back to sender for optimistic updates synching
-                WebSocketSession senderSession = userSessions.get(senderId);
-                if (senderSession != null && senderSession.isOpen()) {
-                    sendJson(senderSession, chatEvent);
-                }
+                sendToUser(recipientId, chatEvent);
+                sendToUser(senderId, chatEvent);
 
-                // AI Bot automated reply check
                 if (recipient.getUsername().equals("nexus_ai")) {
                     final String userMsg = content;
                     final String userFileUrl = fileUrl;
                     final String userFileName = fileName;
                     final String userFileType = fileType;
-                    new Thread(() -> {
+                    taskExecutor.execute(() -> {
                         try {
                             Thread.sleep(1000);
                             
-                            // Send typing indicator start
                             Map<String, Object> typingStart = new HashMap<>();
                             typingStart.put("type", "TYPING");
                             typingStart.put("senderId", recipient.getId());
@@ -348,13 +427,10 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
                             typingStart.put("isTyping", true);
                             typingStart.put("roomId", "dm_" + recipient.getId());
                             
-                            if (senderSession != null && senderSession.isOpen()) {
-                                sendJson(senderSession, typingStart);
-                            }
+                            sendToUser(senderId, typingStart);
                             
-                            Thread.sleep(1500); // simulate typing for 1.5 seconds
+                            Thread.sleep(1500);
                             
-                            // Send typing indicator stop
                             Map<String, Object> typingStop = new HashMap<>();
                             typingStop.put("type", "TYPING");
                             typingStop.put("senderId", recipient.getId());
@@ -362,11 +438,8 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
                             typingStop.put("isTyping", false);
                             typingStop.put("roomId", "dm_" + recipient.getId());
                             
-                            if (senderSession != null && senderSession.isOpen()) {
-                                sendJson(senderSession, typingStop);
-                            }
+                            sendToUser(senderId, typingStop);
 
-                            // Generate bot content
                             String replyContent = "Hi! I am Nexus AI. 🤖 I received your message: \"" + userMsg + "\". I can help you test this WhatsApp clone. Feel free to upload files using the attachment icon (📎) or test the mobile layout by resizing your window!";
                             
                             if (userFileUrl != null) {
@@ -379,13 +452,11 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
                             botChatEvent.put("type", "CHAT_MESSAGE");
                             botChatEvent.put("message", botSaved);
                             
-                            if (senderSession != null && senderSession.isOpen()) {
-                                sendJson(senderSession, botChatEvent);
-                            }
+                            sendToUser(senderId, botChatEvent);
                         } catch (InterruptedException e) {
                             // ignore
                         }
-                    }).start();
+                    });
                 }
             }
         } catch (Exception e) {
@@ -403,10 +474,7 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
         roomUpdate.put("users", participants);
 
         for (Long userId : participants) {
-            WebSocketSession session = userSessions.get(userId);
-            if (session != null && session.isOpen()) {
-                sendJson(session, roomUpdate);
-            }
+            sendToUser(userId, roomUpdate);
         }
     }
 
@@ -416,10 +484,11 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
         presenceEvent.put("userId", userId);
         presenceEvent.put("presence", presenceStatus);
 
-        // Broadcast to all active socket sessions (simplifies propagation across active workspace clients)
-        for (WebSocketSession session : userSessions.values()) {
-            if (session.isOpen()) {
-                sendJson(session, presenceEvent);
+        for (CopyOnWriteArraySet<WebSocketSession> sessions : userSessions.values()) {
+            for (WebSocketSession session : sessions) {
+                if (session.isOpen()) {
+                    sendJson(session, presenceEvent);
+                }
             }
         }
     }
@@ -430,6 +499,17 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
             session.sendMessage(new TextMessage(json));
         } catch (IOException e) {
             // Log socket send failure
+        }
+    }
+
+    private void sendToUser(Long userId, Object obj) {
+        CopyOnWriteArraySet<WebSocketSession> sessions = userSessions.get(userId);
+        if (sessions != null) {
+            for (WebSocketSession session : sessions) {
+                if (session.isOpen()) {
+                    sendJson(session, obj);
+                }
+            }
         }
     }
 
@@ -444,18 +524,6 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
                         return parts[1];
                     }
                 }
-            }
-        }
-        return null;
-    }
-
-    private String getParamFromQuery(String query, String paramName) {
-        if (query == null || query.isEmpty()) return null;
-        String[] pairs = query.split("&");
-        for (String pair : pairs) {
-            String[] idx = pair.split("=");
-            if (idx.length == 2 && idx[0].equals(paramName)) {
-                return idx[1];
             }
         }
         return null;

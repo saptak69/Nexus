@@ -87,4 +87,10 @@ public class FriendService {
                 .map(f -> f.getSender().getId().equals(userId) ? f.getReceiver() : f.getSender())
                 .collect(Collectors.toList());
     }
+
+    public boolean isFriend(Long userId, Long friendId) {
+        return friendRequestRepository.findRequestBetweenUsers(userId, friendId)
+                .map(r -> r.getStatus() == FriendRequestStatus.ACCEPTED)
+                .orElse(false);
+    }
 }

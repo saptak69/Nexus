@@ -3,7 +3,7 @@ import { useAuthStore, API_BASE } from './useAuthStore';
 import type { User } from './useAuthStore';
 import { useWebRTCStore } from './useWebRTCStore';
 
-let reconnectTimer: any = null;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let reconnectAttempts = 0;
 let isExplicitlyClosed = false;
 
@@ -43,6 +43,7 @@ export interface Message {
   deleted: boolean;
   reactions: Reaction[];
   createdAt: string;
+  clientId?: string;
 }
 
 interface ChatState {
@@ -93,7 +94,7 @@ interface ChatState {
 
 
 export const useChatStore = create<ChatState>((set, get) => {
-  let typingTimeout: any = null;
+  let typingTimeout: ReturnType<typeof setTimeout> | null = null;
 
   return {
     activeMode: 'DM',
@@ -385,10 +386,10 @@ export const useChatStore = create<ChatState>((set, get) => {
       );
 
       const wsUrl = import.meta.env.VITE_WS_URL
-        ? `${import.meta.env.VITE_WS_URL}?token=${token}`
+        ? `${import.meta.env.VITE_WS_URL}`
         : (isLocal
-          ? `ws://${window.location.hostname}:8080/ws?token=${token}`
-          : `wss://nexus-production-ce6a.up.railway.app/ws?token=${token}`);
+          ? `ws://${window.location.hostname}:8080/ws`
+          : `wss://nexus-production-ce6a.up.railway.app/ws`);
 
       // Clear any pending reconnect timers
       if (reconnectTimer) {
@@ -403,9 +404,15 @@ export const useChatStore = create<ChatState>((set, get) => {
         set({ connected: true, socket });
         reconnectAttempts = 0; // Reset on successful connection
         // Rejoin active channel room if any
-        const { activeChannelId } = get();
+        const { activeChannelId, activeDmUserId } = get();
         if (activeChannelId) {
           socket.send(JSON.stringify({ type: 'JOIN_ROOM', roomId: `channel_${activeChannelId}` }));
+        }
+        // Rejoin active DM room if any
+        const user = useAuthStore.getState().user;
+        if (activeDmUserId && user) {
+          const roomId = `dm_${Math.min(user.id, activeDmUserId)}_${Math.max(user.id, activeDmUserId)}`;
+          socket.send(JSON.stringify({ type: 'JOIN_ROOM', roomId }));
         }
       };
 
@@ -441,9 +448,12 @@ export const useChatStore = create<ChatState>((set, get) => {
 
           if (isCurrentView) {
             set((state) => {
-              // Remove the optimistic placeholder if it exists (by checking temporary negative IDs)
+              // Remove the optimistic placeholder if it exists
               const filtered = state.messages.filter((m) => {
-                if (m.id < 0 && m.content === message.content && m.sender.id === message.sender.id) {
+                if (m.id < 0 && data.clientId && m.clientId === data.clientId) {
+                  return false;
+                }
+                if (m.id < 0 && !data.clientId && m.content === message.content && m.sender.id === message.sender.id) {
                   return false;
                 }
                 // Prevent duplicate real IDs
@@ -485,8 +495,12 @@ export const useChatStore = create<ChatState>((set, get) => {
             alert(`${senderName || 'The other user'} declined your call.`);
           }
         } else if (type === 'PRESENCE') {
-          // Refresh friends list to show online badge updates
-          get().fetchFriends();
+          // Update the single friend status in Zustand store locally rather than refetching the whole list
+          set((state) => ({
+            friends: state.friends.map(f => 
+              f.id === data.userId ? { ...f, presence: data.presence } : f
+            )
+          }));
         }
       };
 
@@ -525,6 +539,8 @@ export const useChatStore = create<ChatState>((set, get) => {
       const user = useAuthStore.getState().user;
       if (!user) return;
 
+      const clientId = crypto.randomUUID();
+
       const event: any = {
         type: 'CHAT_MESSAGE',
         content,
@@ -533,6 +549,7 @@ export const useChatStore = create<ChatState>((set, get) => {
         fileUrl: options?.fileUrl,
         fileName: options?.fileName,
         fileType: options?.fileType,
+        clientId,
       };
 
       if (activeMode === 'SERVER' && activeChannelId) {
@@ -559,7 +576,8 @@ export const useChatStore = create<ChatState>((set, get) => {
         edited: false,
         deleted: false,
         reactions: [],
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        clientId,
       };
 
       set((state) => ({ messages: [...state.messages, optimisticMessage] }));

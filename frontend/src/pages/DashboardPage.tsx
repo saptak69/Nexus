@@ -61,12 +61,12 @@ export const DashboardPage: React.FC = () => {
               {/* Informative features grid - sharp corners, monochrome style */}
               <div className="grid grid-cols-2 gap-3 w-full mt-4 text-left">
                 <div className="p-4 bg-zinc-950/40 border border-zinc-900 rounded-none flex flex-col gap-2">
-                  <MessageSquare className="w-4.5 h-4.5 text-white" />
+                  <MessageSquare className="w-4 h-4 text-white" />
                   <span className="text-[9px] font-mono font-black uppercase tracking-widest text-white">MESSAGE_STREAM</span>
                   <span className="text-[9px] font-mono text-zinc-500 leading-normal uppercase">Instant text and file payload exchange over encrypted stream channels.</span>
                 </div>
                 <div className="p-4 bg-zinc-950/40 border border-zinc-900 rounded-none flex flex-col gap-2">
-                  <Shield className="w-4.5 h-4.5 text-white" />
+                  <Shield className="w-4 h-4 text-white" />
                   <span className="text-[9px] font-mono font-black uppercase tracking-widest text-white">RTC_CONFERENCE</span>
                   <span className="text-[9px] font-mono text-zinc-500 leading-normal uppercase">Encrypted high-fidelity multi-operator audio/video pipeline.</span>
                 </div>

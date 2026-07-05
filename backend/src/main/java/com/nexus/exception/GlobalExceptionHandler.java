@@ -20,7 +20,7 @@ public class GlobalExceptionHandler {
                 HttpStatus.NOT_FOUND.value(),
                 "Not Found",
                 ex.getMessage(),
-                request.getDescription(false)
+                sanitizePath(request)
         );
         return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
     }
@@ -31,7 +31,7 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST.value(),
                 "Bad Request",
                 ex.getMessage(),
-                request.getDescription(false)
+                sanitizePath(request)
         );
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
@@ -52,10 +52,19 @@ public class GlobalExceptionHandler {
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "Internal Server Error",
-                ex.getMessage(),
-                request.getDescription(false)
+                "An unexpected error occurred.",
+                sanitizePath(request)
         );
         return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    private String sanitizePath(WebRequest request) {
+        String desc = request.getDescription(false);
+        if (desc == null) return null;
+        if (desc.startsWith("uri=")) {
+            return desc.substring(4);
+        }
+        return desc;
     }
 
     public static class ErrorResponse {

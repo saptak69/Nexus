@@ -4,11 +4,11 @@ import type { Message } from '../store/useChatStore';
 import { useAuthStore, API_BASE } from '../store/useAuthStore';
 import type { User } from '../store/useAuthStore';
 import { useWebRTCStore } from '../store/useWebRTCStore';
-import { Send, Paperclip, Smile, Edit2, Trash2, CornerUpLeft, X, Video, Image, FileText, ArrowLeft, CheckCheck } from 'lucide-react';
+import { Send, Paperclip, Smile, Edit2, Trash2, CornerUpLeft, X, Video, Image, FileText, ArrowLeft, Check } from 'lucide-react';
 
 export const ChatArea: React.FC = () => {
   const { 
-    messages, activeMode, activeDmUserId, friends, sendMessage, sendTyping, typingUsers, setActiveDmUserId, connected
+    messages, activeMode, activeDmUserId, activeChannelId, friends, sendMessage, sendTyping, typingUsers, setActiveDmUserId, connected
   } = useChatStore();
 
   const { user, token } = useAuthStore();
@@ -37,9 +37,20 @@ export const ChatArea: React.FC = () => {
     messageEndRef.current?.scrollIntoView({ behavior });
   };
 
+  // Scroll to bottom only if user is near the bottom
+  useEffect(() => {
+    const el = chatAreaRef.current;
+    if (!el) return;
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+    if (isNearBottom) {
+      scrollToBottom('smooth');
+    }
+  }, [messages]);
+
+  // Scroll to bottom unconditionally on channel/DM switch
   useEffect(() => {
     scrollToBottom('auto');
-  }, [messages, typingUsers]);
+  }, [activeChannelId, activeDmUserId]);
 
   // Fetch active DM user details
   useEffect(() => {
@@ -433,7 +444,7 @@ export const ChatArea: React.FC = () => {
                             src={msg.fileUrl} 
                             alt={msg.fileName} 
                             className="rounded-none max-h-60 border border-white/10 object-cover cursor-zoom-in filter grayscale contrast-125"
-                            onClick={() => window.open(msg.fileUrl, '_blank')}
+                            onClick={() => window.open(msg.fileUrl, '_blank', 'noopener,noreferrer')}
                           />
                         ) : msg.fileType?.startsWith('video/') ? (
                           <video 
@@ -451,7 +462,7 @@ export const ChatArea: React.FC = () => {
                           <a 
                             href={msg.fileUrl} 
                             target="_blank" 
-                            rel="noreferrer"
+                            rel="noopener noreferrer"
                             className={`flex items-center gap-2 p-2 rounded-none border text-[10px] font-mono uppercase tracking-wider ${
                               isMe ? 'bg-black/5 border-black/20 text-zinc-900' : 'bg-white/5 border-white/15 text-white'
                             }`}
@@ -471,7 +482,7 @@ export const ChatArea: React.FC = () => {
                       isMe ? 'text-zinc-600' : 'text-zinc-500'
                     }`}>
                       {msg.edited && <span>[EDIT]</span>}
-                      {isMe && <CheckCheck className="w-3 h-3 text-black" />}
+                      {isMe && <Check className="w-3 h-3 text-black" />}
                     </div>
 
                   </div>
@@ -637,7 +648,7 @@ export const ChatArea: React.FC = () => {
             />
             {/* Smile Emoji Shortcut */}
             <span className="absolute right-3 inset-y-0 flex items-center text-zinc-600 hover:text-white cursor-pointer select-none">
-              <Smile className="w-4.5 h-4.5" />
+              <Smile className="w-5 h-5" />
             </span>
           </div>
 

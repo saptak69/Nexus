@@ -3,6 +3,7 @@ package com.nexus.service;
 import com.nexus.model.*;
 import com.nexus.repository.MessageRepository;
 import com.nexus.repository.ReactionRepository;
+import com.nexus.exception.ResourceNotFoundException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -68,8 +69,8 @@ public class MessageService {
 
     @Transactional
     public Message editMessage(Long messageId, String newContent, User user) {
-        Message message = messageRepository.findById(messageId)
-                .orElseThrow(() -> new RuntimeException("Message not found"));
+        Message message = messageRepository.findWithAssociationsById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Message not found"));
 
         if (!message.getSender().getId().equals(user.getId())) {
             throw new RuntimeException("Unauthorized: You cannot edit someone else's message");
@@ -86,8 +87,8 @@ public class MessageService {
 
     @Transactional
     public Message deleteMessage(Long messageId, User user) {
-        Message message = messageRepository.findById(messageId)
-                .orElseThrow(() -> new RuntimeException("Message not found"));
+        Message message = messageRepository.findWithAssociationsById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Message not found"));
 
         if (!message.getSender().getId().equals(user.getId())) {
             throw new RuntimeException("Unauthorized: You cannot delete someone else's message");

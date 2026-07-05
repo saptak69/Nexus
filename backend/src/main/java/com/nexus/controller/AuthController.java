@@ -6,6 +6,7 @@ import com.nexus.dto.RegisterRequest;
 import com.nexus.model.User;
 import com.nexus.service.UserService;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -13,14 +14,22 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import com.nexus.security.JwtTokenProvider;
+import com.nexus.security.SimpleRateLimiter;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
+
     private final UserService userService;
     private final JwtTokenProvider tokenProvider;
+    private final ConcurrentHashMap<String, SimpleRateLimiter> ipLimiters = new ConcurrentHashMap<>();
 
     public AuthController(UserService userService, JwtTokenProvider tokenProvider) {
         this.userService = userService;
@@ -39,7 +48,13 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@Valid @RequestBody RegisterRequest registerRequest, HttpServletResponse response) {
+    public ResponseEntity<?> registerUser(@Valid @RequestBody RegisterRequest registerRequest, HttpServletRequest request, HttpServletResponse response) {
+        String ip = request.getRemoteAddr();
+        SimpleRateLimiter limiter = ipLimiters.computeIfAbsent(ip, k -> new SimpleRateLimiter(5, 0.2));
+        if (!limiter.tryAcquire()) {
+            return ResponseEntity.status(429).body("Too many requests. Please try again later.");
+        }
+
         try {
             User user = userService.registerUser(
                     registerRequest.getUsername(),
@@ -52,12 +67,19 @@ public class AuthController {
             setJwtCookie(response, token);
             return ResponseEntity.ok(new JwtResponse(token, user));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            log.error("Registration failed", e);
+            return ResponseEntity.badRequest().body("Registration failed. Please check your input.");
         }
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest, HttpServletResponse response) {
+    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request, HttpServletResponse response) {
+        String ip = request.getRemoteAddr();
+        SimpleRateLimiter limiter = ipLimiters.computeIfAbsent(ip, k -> new SimpleRateLimiter(5, 0.2));
+        if (!limiter.tryAcquire()) {
+            return ResponseEntity.status(429).body("Too many requests. Please try again later.");
+        }
+
         try {
             String token = userService.loginUser(
                     loginRequest.getUsernameOrEmail(),
@@ -73,7 +95,8 @@ public class AuthController {
             setJwtCookie(response, token);
             return ResponseEntity.ok(new JwtResponse(token, user));
         } catch (Exception e) {
-            return ResponseEntity.status(401).body("Invalid username or password: " + e.getMessage());
+            log.error("Login failed", e);
+            return ResponseEntity.status(401).body("Invalid username or password.");
         }
     }
 

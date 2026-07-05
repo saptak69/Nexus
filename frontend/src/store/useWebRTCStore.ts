@@ -62,7 +62,9 @@ export const useWebRTCStore = create<WebRTCState>((set, get) => {
   // Active Speaker Detection
   const startSpeakerDetection = (stream: MediaStream) => {
     try {
-      if (audioContext) audioContext.close();
+      if (audioContext && audioContext.state !== 'closed') {
+        audioContext.close();
+      }
       
       const audioTrack = stream.getAudioTracks()[0];
       if (!audioTrack) return;

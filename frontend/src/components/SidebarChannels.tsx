@@ -153,21 +153,21 @@ export const SidebarChannels: React.FC = () => {
             className="p-2 text-white bg-white/10 border border-white/20 rounded-none hover:bg-white hover:text-black kinematic-transition"
             title="Chats"
           >
-            <MessageSquare className="w-4.5 h-4.5" />
+            <MessageSquare className="w-4 h-4" />
           </button>
           
           <button 
             className="p-2 text-zinc-500 hover:text-white rounded-none hover:bg-white/5 kinematic-transition"
             title="Archived"
           >
-            <FolderArchive className="w-4.5 h-4.5" />
+            <FolderArchive className="w-4 h-4" />
           </button>
 
           <button 
             className="p-2 text-zinc-500 hover:text-white rounded-none hover:bg-white/5 kinematic-transition"
             title="Operators"
           >
-            <UserCheck className="w-4.5 h-4.5" />
+            <UserCheck className="w-4 h-4" />
           </button>
         </div>
 
@@ -182,7 +182,7 @@ export const SidebarChannels: React.FC = () => {
             className="p-2 text-zinc-500 hover:text-white rounded-none hover:bg-white/5 kinematic-transition"
             title="Profile Settings"
           >
-            <Settings className="w-4.5 h-4.5" />
+            <Settings className="w-4 h-4" />
           </button>
           
           <button
@@ -190,7 +190,7 @@ export const SidebarChannels: React.FC = () => {
             className="p-2 text-zinc-500 hover:text-red-400 rounded-none hover:bg-red-500/10 kinematic-transition"
             title="Exit Session"
           >
-            <LogOut className="w-4.5 h-4.5" />
+            <LogOut className="w-4 h-4" />
           </button>
         </div>
       </div>

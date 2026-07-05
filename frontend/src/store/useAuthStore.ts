@@ -38,6 +38,8 @@ export const API_BASE = import.meta.env.VITE_API_URL || (isLocal
   ? `http://${window.location.hostname}:8080/api`
   : 'https://nexus-production-ce6a.up.railway.app/api');
 
+let loadUserAbortController: AbortController | null = null;
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
@@ -118,6 +120,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   loadUser: async () => {
+    if (loadUserAbortController) {
+      loadUserAbortController.abort();
+    }
+    loadUserAbortController = new AbortController();
+    const signal = loadUserAbortController.signal;
+
     let token = get().token;
 
     // If no token in memory, attempt to bootstrap using HttpOnly refresh cookie
@@ -127,10 +135,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const response = await fetch(`${API_BASE}/auth/refresh`, {
           method: 'POST',
           credentials: 'include',
+          signal,
         });
 
         if (response.ok) {
           const data = await response.json();
+          if (signal.aborted) return;
           set({
             token: data.token,
             user: data.user,
@@ -139,9 +149,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           });
           return;
         }
-      } catch (err) {
-        console.error('Failed to bootstrap session from cookie:', err);
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error('Failed to bootstrap session from cookie:', err);
+        }
       }
+      if (signal.aborted) return;
       set({ token: null, user: null, isAuthenticated: false, isAuthenticating: false });
       return;
     }
@@ -153,6 +166,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           Authorization: `Bearer ${token}`,
         },
         credentials: 'include',
+        signal,
       });
 
       if (!response.ok) {
@@ -160,8 +174,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       const user = await response.json();
+      if (signal.aborted) return;
       set({ user, isAuthenticated: true, isAuthenticating: false });
-    } catch (err) {
+    } catch (err: any) {
+      if (signal.aborted) return;
       set({ token: null, user: null, isAuthenticated: false, isAuthenticating: false });
     }
   },
