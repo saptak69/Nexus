@@ -23,18 +23,18 @@ export const DashboardPage: React.FC = () => {
   const hasActiveConversation = (activeMode === 'SERVER' && activeChannelId !== null) || (activeMode === 'DM' && activeDmUserId !== null);
 
   return (
-    <div className="flex h-screen w-full bg-black text-white overflow-hidden select-none font-sans rounded-none">
+    <div className="flex w-full bg-black text-white overflow-hidden select-none font-sans rounded-none" style={{ height: '100dvh' }}>
       
       {/* 1. Left panel: Dual-Pane Sidebar containing left icon-dock and middle thread-list */}
       <div className={`h-full shrink-0 border-r border-zinc-900 bg-black ${
-        activeDmUserId !== null ? 'hidden md:flex md:w-[350px] lg:w-[400px]' : 'flex w-full md:w-[350px] lg:w-[400px]'
+        hasActiveConversation ? 'hidden md:flex md:w-[350px] lg:w-[400px]' : 'flex w-full md:w-[350px] lg:w-[400px]'
       }`}>
         <SidebarChannels />
       </div>
 
       {/* 2. Right panel: Active Chat Console or Welcome Grid */}
       <div className={`h-full flex-col min-w-0 ${
-        activeDmUserId !== null ? 'flex-1 flex w-full' : 'hidden md:flex md:flex-1'
+        hasActiveConversation ? 'flex-1 flex w-full' : 'hidden md:flex md:flex-1'
       }`}>
         {inCall ? (
           <VideoGrid />

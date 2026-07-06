@@ -159,7 +159,6 @@ public class MessageController {
 
             Map<?, ?> uploadResult = cloudinaryService.upload(file);
             String fileUrl = (String) uploadResult.get("secure_url");
-            String originalFileName = file.getOriginalFilename();
 
             Map<String, String> response = new HashMap<>();
             response.put("fileUrl", fileUrl);

@@ -4,7 +4,7 @@ import type { Message } from '../store/useChatStore';
 import { useAuthStore, API_BASE } from '../store/useAuthStore';
 import type { User } from '../store/useAuthStore';
 import { useWebRTCStore } from '../store/useWebRTCStore';
-import { Paperclip, Smile, Edit2, Trash2, CornerUpLeft, X, Video, Image, FileText, Check, Clock } from 'lucide-react';
+import { Paperclip, Smile, Edit2, Trash2, CornerUpLeft, X, Video, Image, FileText, Check, Clock, ArrowLeft } from 'lucide-react';
 
 const getOptimizedImageUrl = (url?: string, width = 600) => {
   if (!url) return '';
@@ -19,7 +19,7 @@ const getOptimizedImageUrl = (url?: string, width = 600) => {
 
 export const ChatArea: React.FC = () => {
   const { 
-    messages, activeMode, activeDmUserId, activeChannelId, friends, sendMessage, sendTyping, typingUsers, setActiveDmUserId, connected
+    messages, activeMode, activeDmUserId, activeChannelId, friends, channels, sendMessage, sendTyping, typingUsers, setActiveDmUserId, setActiveChannelId, connected
   } = useChatStore();
 
   const { user, token } = useAuthStore();
@@ -252,7 +252,9 @@ export const ChatArea: React.FC = () => {
   let activeFriend: User | null = null;
 
   if (activeMode === 'SERVER') {
-    title = 'SERVER ROOM';
+    const activeChannel = channels.find(c => c.id === activeChannelId);
+    title = activeChannel ? `# ${activeChannel.name}` : 'SERVER ROOM';
+    subTitle = activeChannel ? activeChannel.description || 'TEXT_CHANNEL' : '';
   } else {
     activeFriend = fetchedFriend;
     title = activeFriend ? activeFriend.username : 'SYNCING...';
@@ -289,9 +291,10 @@ export const ChatArea: React.FC = () => {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`flex-1 h-screen bg-black bg-dot-grid flex flex-col justify-between overflow-hidden relative rounded-none border-l border-zinc-900 ${
+      className={`flex-1 bg-black bg-dot-grid flex flex-col justify-between overflow-hidden relative rounded-none border-l border-zinc-900 ${
         dragOver ? 'border border-dashed border-white bg-white/5' : ''
       }`}
+      style={{ height: '100dvh' }}
     >
       
       {/* HEADER BAR (Monochromatic, sharp borders, all buttons visible) */}
@@ -301,11 +304,14 @@ export const ChatArea: React.FC = () => {
             
             {/* Back Button for mobile viewports */}
             <button
-              onClick={() => setActiveDmUserId(null)}
-              className="md:hidden px-2.5 py-1.5 mr-3 text-[10px] font-mono font-bold text-white bg-black border border-white/20 hover:bg-white hover:text-black rounded-none transition flex items-center justify-center shrink-0"
+              onClick={() => {
+                setActiveDmUserId(null);
+                setActiveChannelId(null);
+              }}
+              className="md:hidden p-2 mr-3 text-white bg-black border border-white/20 hover:bg-white hover:text-black rounded-none transition flex items-center justify-center shrink-0 w-9 h-9"
               title="Back"
             >
-              [BACK]
+              <ArrowLeft className="w-4 h-4" />
             </button>
 
             {/* Gray-scaled profile picture */}
@@ -587,7 +593,10 @@ export const ChatArea: React.FC = () => {
       </div>
 
       {/* FIXED BOTTOM-ANCHORED INPUT BAR (Frosted-glass style, stark monochrome) */}
-      <div className="p-3 bg-black/80 backdrop-blur-md border-t border-zinc-900 shrink-0 relative z-10">
+      <div 
+        className="p-3 bg-black/80 backdrop-blur-md border-t border-zinc-900 shrink-0 relative z-10"
+        style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}
+      >
         
         {/* Reply Indicator banner */}
         {replyToMessage && (
