@@ -32,9 +32,9 @@ services:
       - DB_USERNAME=postgres
       - DB_PASSWORD=postgres
       - JWT_SECRET=${JWT_SECRET}
-      - CLOUDINARY_CLOUD_NAME=your_cloud_name
-      - CLOUDINARY_API_KEY=your_api_key
-      - CLOUDINARY_API_SECRET=your_api_secret
+      - CLOUDINARY_CLOUD_NAME=duwepnofs
+      - CLOUDINARY_API_KEY=298654356351333
+      - CLOUDINARY_API_SECRET=rVVJq14sVoVDMGcZ5kzGfkyLymU
     depends_on:
       db:
         condition: service_healthy

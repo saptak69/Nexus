@@ -15,4 +15,4 @@ echo - Frontend will be available at http://localhost:5173
 echo - H2 Console (in-memory db) is available at http://localhost:8080/h2-console (JDBC URL: jdbc:h2:file:./data/nexus_db, Username: sa, Password: <empty>)
 echo.
 echo Press any key to exit this launcher window.
-pause > null
+pause > nul

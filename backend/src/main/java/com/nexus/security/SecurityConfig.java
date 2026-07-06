@@ -67,6 +67,7 @@ public class SecurityConfig {
         configuration.setAllowedOriginPatterns(Arrays.asList(
                 "https://nexus-chat-iota-dun.vercel.app",
                 "https://*.vercel.app",
+                "https://*.onrender.com",
                 "http://localhost:5173",
                 "http://127.0.0.1:5173",
                 "http://192.168.*:5173",
