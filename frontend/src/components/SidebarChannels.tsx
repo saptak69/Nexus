@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useChatStore } from '../store/useChatStore';
 import type { Message } from '../store/useChatStore';
 import { useAuthStore, API_BASE, type User } from '../store/useAuthStore';
-import { Settings, LogOut, Search, MessageSquare, CheckCheck, X, FolderArchive, HelpCircle, UserCheck } from 'lucide-react';
+import { Settings, LogOut, Search, MessageSquare, CheckCheck, X, FolderArchive, UserCheck } from 'lucide-react';
 
 export const SidebarChannels: React.FC = () => {
   const { 

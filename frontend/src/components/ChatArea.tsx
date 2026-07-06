@@ -4,7 +4,7 @@ import type { Message } from '../store/useChatStore';
 import { useAuthStore, API_BASE } from '../store/useAuthStore';
 import type { User } from '../store/useAuthStore';
 import { useWebRTCStore } from '../store/useWebRTCStore';
-import { Send, Paperclip, Smile, Edit2, Trash2, CornerUpLeft, X, Video, Image, FileText, ArrowLeft, Check } from 'lucide-react';
+import { Paperclip, Smile, Edit2, Trash2, CornerUpLeft, X, Video, Image, FileText, Check } from 'lucide-react';
 
 export const ChatArea: React.FC = () => {
   const { 
