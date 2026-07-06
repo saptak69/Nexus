@@ -11,7 +11,15 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "messages")
+@Table(
+    name = "messages",
+    indexes = {
+        @Index(name = "idx_messages_channel_id", columnList = "channel_id"),
+        @Index(name = "idx_messages_sender_id", columnList = "sender_id"),
+        @Index(name = "idx_messages_recipient_id", columnList = "recipient_id"),
+        @Index(name = "idx_messages_created_at", columnList = "created_at")
+    }
+)
 @Getter
 @Setter
 @NoArgsConstructor

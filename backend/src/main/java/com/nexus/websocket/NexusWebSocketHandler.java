@@ -16,6 +16,9 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.web.socket.PingMessage;
+import java.nio.ByteBuffer;
 
 import java.io.IOException;
 import java.util.*;
@@ -527,5 +530,25 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
             }
         }
         return null;
+    }
+
+    @Scheduled(fixedRate = 30000)
+    public void sendHeartbeats() {
+        for (Map.Entry<Long, CopyOnWriteArraySet<WebSocketSession>> entry : userSessions.entrySet()) {
+            CopyOnWriteArraySet<WebSocketSession> sessions = entry.getValue();
+            for (WebSocketSession session : sessions) {
+                if (session.isOpen()) {
+                    try {
+                        session.sendMessage(new PingMessage(ByteBuffer.allocate(0)));
+                    } catch (IOException e) {
+                        try {
+                            session.close();
+                        } catch (IOException ex) {
+                            // ignore
+                        }
+                    }
+                }
+            }
+        }
     }
 }

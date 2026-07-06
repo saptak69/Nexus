@@ -4,7 +4,18 @@ import type { Message } from '../store/useChatStore';
 import { useAuthStore, API_BASE } from '../store/useAuthStore';
 import type { User } from '../store/useAuthStore';
 import { useWebRTCStore } from '../store/useWebRTCStore';
-import { Paperclip, Smile, Edit2, Trash2, CornerUpLeft, X, Video, Image, FileText, Check } from 'lucide-react';
+import { Paperclip, Smile, Edit2, Trash2, CornerUpLeft, X, Video, Image, FileText, Check, Clock } from 'lucide-react';
+
+const getOptimizedImageUrl = (url?: string, width = 600) => {
+  if (!url) return '';
+  if (!url.includes('cloudinary.com')) return url;
+  const uploadIndex = url.indexOf('/image/upload/');
+  if (uploadIndex === -1) return url;
+  const insertIndex = uploadIndex + '/image/upload/'.length;
+  const prefix = url.substring(0, insertIndex);
+  const suffix = url.substring(insertIndex);
+  return `${prefix}w_${width},c_limit,q_auto,f_auto/${suffix}`;
+};
 
 export const ChatArea: React.FC = () => {
   const { 
@@ -441,7 +452,7 @@ export const ChatArea: React.FC = () => {
                       <div className="mt-2.5 max-w-full">
                         {msg.fileType?.startsWith('image/') ? (
                           <img 
-                            src={msg.fileUrl} 
+                            src={getOptimizedImageUrl(msg.fileUrl, 600)} 
                             alt={msg.fileName} 
                             className="rounded-none max-h-60 border border-white/10 object-cover cursor-zoom-in filter grayscale contrast-125"
                             onClick={() => window.open(msg.fileUrl, '_blank', 'noopener,noreferrer')}
@@ -482,7 +493,13 @@ export const ChatArea: React.FC = () => {
                       isMe ? 'text-zinc-600' : 'text-zinc-500'
                     }`}>
                       {msg.edited && <span>[EDIT]</span>}
-                      {isMe && <Check className="w-3 h-3 text-black" />}
+                      {isMe && (
+                        msg.id < 0 ? (
+                          <Clock className="w-3 h-3 animate-pulse" />
+                        ) : (
+                          <Check className="w-3 h-3 text-emerald-700" />
+                        )
+                      )}
                     </div>
 
                   </div>

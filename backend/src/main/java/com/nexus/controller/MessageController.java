@@ -130,6 +130,33 @@ public class MessageController {
                 return ResponseEntity.badRequest().body("File is empty");
             }
 
+            // 1. Enforce a 20MB file size limit
+            if (file.getSize() > 20 * 1024 * 1024) {
+                return ResponseEntity.badRequest().body("File size exceeds the limit of 20MB.");
+            }
+
+            // 2. Validate file extension (block execution files)
+            String originalFileName = file.getOriginalFilename();
+            if (originalFileName != null) {
+                String lower = originalFileName.toLowerCase();
+                if (lower.endsWith(".exe") || lower.endsWith(".bat") || lower.endsWith(".sh") || 
+                    lower.endsWith(".cmd") || lower.endsWith(".js") || lower.endsWith(".jar") || 
+                    lower.endsWith(".msi") || lower.endsWith(".vbs") || lower.endsWith(".com") || 
+                    lower.endsWith(".scr")) {
+                    return ResponseEntity.badRequest().body("Unsupported file type: Executable files are blocked for security reasons.");
+                }
+            }
+
+            // 3. Validate MIME type
+            String contentType = file.getContentType();
+            if (contentType != null && (
+                contentType.contains("javascript") || 
+                contentType.contains("x-msdownload") || 
+                contentType.contains("x-sh") || 
+                contentType.contains("x-bat"))) {
+                return ResponseEntity.badRequest().body("Unsupported file type: Executable content is blocked.");
+            }
+
             Map<?, ?> uploadResult = cloudinaryService.upload(file);
             String fileUrl = (String) uploadResult.get("secure_url");
             String originalFileName = file.getOriginalFilename();
