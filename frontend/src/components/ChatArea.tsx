@@ -254,7 +254,7 @@ export const ChatArea: React.FC = () => {
   if (activeMode === 'SERVER') {
     const activeChannel = channels.find(c => c.id === activeChannelId);
     title = activeChannel ? `# ${activeChannel.name}` : 'SERVER ROOM';
-    subTitle = activeChannel ? activeChannel.description || 'TEXT_CHANNEL' : '';
+    subTitle = activeChannel ? `${activeChannel.type}_CHANNEL` : '';
   } else {
     activeFriend = fetchedFriend;
     title = activeFriend ? activeFriend.username : 'SYNCING...';
