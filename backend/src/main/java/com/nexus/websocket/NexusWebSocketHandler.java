@@ -64,6 +64,21 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
         // 1. Try to read token from HttpOnly cookie
         String token = getCookieFromSession(session, "jwt_token");
 
+        // Fallback: Read token from query parameters (crucial for cross-origin environments)
+        if (token == null) {
+            java.net.URI uri = session.getUri();
+            if (uri != null && uri.getQuery() != null) {
+                String query = uri.getQuery();
+                for (String param : query.split("&")) {
+                    String[] pair = param.split("=");
+                    if (pair.length == 2 && "token".equals(pair[0])) {
+                        token = pair[1];
+                        break;
+                    }
+                }
+            }
+        }
+
         if (token == null || !tokenProvider.validateToken(token)) {
             session.close(CloseStatus.POLICY_VIOLATION);
             return;
