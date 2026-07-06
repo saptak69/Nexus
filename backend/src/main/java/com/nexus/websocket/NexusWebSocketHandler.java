@@ -190,7 +190,8 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
         if (recipientOpt.get().getUsername().equals("nexus_ai")) {
             return true;
         }
-        return friendService.isFriend(userId, friendId);
+        // Bypass friend restriction to allow DM/calling between any registered users (Slack/Discord style)
+        return true;
     }
 
     private void handleJoinRoom(Long userId, Map<String, Object> payload) {
