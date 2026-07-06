@@ -398,7 +398,6 @@ export const useChatStore = create<ChatState>((set, get) => {
       }
       isExplicitlyClosed = false;
 
-      const token = useAuthStore.getState().token;
       const wsUrlWithToken = token ? `${wsUrl}?token=${token}` : wsUrl;
       const socket = new WebSocket(wsUrlWithToken);
 
