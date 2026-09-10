@@ -38,6 +38,9 @@ public class AuthControllerTest {
     @MockBean
     private CustomUserDetailsService customUserDetailsService;
 
+    @MockBean
+    private com.nexus.service.OtpService otpService;
+
     @Autowired
     private ObjectMapper objectMapper;
 
