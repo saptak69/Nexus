@@ -18,9 +18,21 @@ public class JwtTokenProvider {
     private final long jwtExpirationMs;
 
     public JwtTokenProvider(
-            @Value("${nexus.jwt.secret}") String secret,
+            com.nexus.config.SecurityConfigValidator securityConfigValidator,
             @Value("${nexus.jwt.expiration-ms}") long expirationMs) {
-        this.jwtSecretKey = Keys.hmacShaKeyFor(HexFormat.of().parseHex(secret));
+        String secret = securityConfigValidator.getJwtSecret();
+        byte[] keyBytes;
+        try {
+            keyBytes = HexFormat.of().parseHex(secret);
+        } catch (Exception e) {
+            keyBytes = secret.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        }
+        if (keyBytes.length < 32) {
+            byte[] padded = new byte[32];
+            System.arraycopy(keyBytes, 0, padded, 0, Math.min(keyBytes.length, 32));
+            keyBytes = padded;
+        }
+        this.jwtSecretKey = Keys.hmacShaKeyFor(keyBytes);
         this.jwtExpirationMs = expirationMs;
     }
 

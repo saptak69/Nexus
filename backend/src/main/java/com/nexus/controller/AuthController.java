@@ -1,9 +1,8 @@
 package com.nexus.controller;
 
-import com.nexus.dto.JwtResponse;
-import com.nexus.dto.LoginRequest;
-import com.nexus.dto.RegisterRequest;
+import com.nexus.dto.*;
 import com.nexus.model.User;
+import com.nexus.service.OtpService;
 import com.nexus.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,6 +18,8 @@ import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
@@ -29,11 +30,13 @@ public class AuthController {
 
     private final UserService userService;
     private final JwtTokenProvider tokenProvider;
+    private final OtpService otpService;
     private final ConcurrentHashMap<String, SimpleRateLimiter> ipLimiters = new ConcurrentHashMap<>();
 
-    public AuthController(UserService userService, JwtTokenProvider tokenProvider) {
+    public AuthController(UserService userService, JwtTokenProvider tokenProvider, OtpService otpService) {
         this.userService = userService;
         this.tokenProvider = tokenProvider;
+        this.otpService = otpService;
     }
 
     private void setJwtCookie(HttpServletResponse response, String token) {
@@ -155,5 +158,54 @@ public class AuthController {
             return ResponseEntity.ok(user);
         }
         return ResponseEntity.status(401).body("Not authenticated");
+    }
+
+    @PostMapping("/otp/send")
+    public ResponseEntity<?> sendOtp(@Valid @RequestBody OtpSendRequest sendRequest, HttpServletRequest request) {
+        String ip = request.getRemoteAddr();
+        try {
+            OtpSendResponse resp = otpService.sendOtp(sendRequest, ip);
+            return ResponseEntity.ok(resp);
+        } catch (Exception e) {
+            log.error("OTP send failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/otp/verify")
+    public ResponseEntity<?> verifyOtp(@Valid @RequestBody OtpVerifyRequest verifyRequest, HttpServletResponse response) {
+        try {
+            OtpVerifyResponse resp = otpService.verifyOtp(verifyRequest.getTarget(), verifyRequest.getCode());
+            if (!resp.isNewUser() && resp.getToken() != null) {
+                setJwtCookie(response, resp.getToken());
+            }
+            return ResponseEntity.ok(resp);
+        } catch (Exception e) {
+            log.error("OTP verify failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/otp/register-profile")
+    public ResponseEntity<?> registerProfile(@Valid @RequestBody RegisterProfileRequest profileRequest, HttpServletResponse response) {
+        try {
+            OtpVerifyResponse resp = otpService.registerProfile(profileRequest);
+            if (resp.getToken() != null) {
+                setJwtCookie(response, resp.getToken());
+            }
+            return ResponseEntity.ok(resp);
+        } catch (Exception e) {
+            log.error("Profile registration failed: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/check-username")
+    public ResponseEntity<?> checkUsername(@RequestParam String username) {
+        boolean available = otpService.isUsernameAvailable(username);
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("username", username);
+        resp.put("available", available);
+        return ResponseEntity.ok(resp);
     }
 }

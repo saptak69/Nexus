@@ -31,16 +31,19 @@ public class User {
     @Column(unique = true, nullable = false)
     private String username;
 
-    @NotBlank
+    @Size(max = 50)
+    private String displayName;
+
+    @Column(unique = true)
+    private String phoneNumber;
+
     @Email
     @Size(max = 100)
-    @Column(unique = true, nullable = false)
+    @Column(unique = true)
     private String email;
 
-    @NotBlank
     @Size(max = 120)
     @JsonIgnore
-    @Column(nullable = false)
     private String password;
 
     private String avatarUrl;
@@ -52,6 +55,7 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Builder.Default
     private PresenceStatus presence = PresenceStatus.OFFLINE;
 
     @CreationTimestamp

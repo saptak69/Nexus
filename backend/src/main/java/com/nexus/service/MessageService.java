@@ -17,15 +17,32 @@ public class MessageService {
 
     private final MessageRepository messageRepository;
     private final ReactionRepository reactionRepository;
+    private final LocalStorageService localStorageService;
 
-    public MessageService(MessageRepository messageRepository, ReactionRepository reactionRepository) {
+    public MessageService(MessageRepository messageRepository, 
+                          ReactionRepository reactionRepository,
+                          LocalStorageService localStorageService) {
         this.messageRepository = messageRepository;
         this.reactionRepository = reactionRepository;
+        this.localStorageService = localStorageService;
+    }
+
+    private String promoteIfTemp(String fileUrl) {
+        if (fileUrl != null && fileUrl.contains("/api/files/temp/")) {
+            try {
+                return localStorageService.promote(fileUrl);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to promote attached file to permanent storage: " + e.getMessage(), e);
+            }
+        }
+        return fileUrl;
     }
 
     @Transactional
     public Message saveChannelMessage(String content, User sender, Channel channel, 
                                       Long parentId, String fileUrl, String fileName, String fileType) {
+        String permanentFileUrl = promoteIfTemp(fileUrl);
+
         Message parent = null;
         if (parentId != null) {
             parent = messageRepository.findById(parentId).orElse(null);
@@ -36,7 +53,7 @@ public class MessageService {
                 .sender(sender)
                 .channel(channel)
                 .parentMessage(parent)
-                .fileUrl(fileUrl)
+                .fileUrl(permanentFileUrl)
                 .fileName(fileName)
                 .fileType(fileType)
                 .build();
@@ -48,6 +65,8 @@ public class MessageService {
     @Transactional
     public Message saveDirectMessage(String content, User sender, User recipient, 
                                      Long parentId, String fileUrl, String fileName, String fileType) {
+        String permanentFileUrl = promoteIfTemp(fileUrl);
+
         Message parent = null;
         if (parentId != null) {
             parent = messageRepository.findById(parentId).orElse(null);
@@ -58,7 +77,7 @@ public class MessageService {
                 .sender(sender)
                 .recipient(recipient)
                 .parentMessage(parent)
-                .fileUrl(fileUrl)
+                .fileUrl(permanentFileUrl)
                 .fileName(fileName)
                 .fileType(fileType)
                 .build();
@@ -148,5 +167,13 @@ public class MessageService {
 
     public Optional<Message> getMessageById(Long id) {
         return messageRepository.findById(id);
+    }
+
+    public List<Message> getDirectMessagesSince(Long userId1, Long userId2, Long sinceId) {
+        return messageRepository.findDirectMessagesSince(userId1, userId2, sinceId);
+    }
+
+    public List<Message> getChannelMessagesSince(Long channelId, Long sinceId) {
+        return messageRepository.findChannelMessagesSince(channelId, sinceId);
     }
 }

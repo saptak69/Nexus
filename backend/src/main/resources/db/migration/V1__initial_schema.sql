@@ -1,0 +1,76 @@
+-- V1 Initial Schema for Nexus Platform
+CREATE TABLE IF NOT EXISTS users (
+    id BIGSERIAL PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(120) NOT NULL,
+    avatar_url VARCHAR(255),
+    status_message VARCHAR(255),
+    user_tag VARCHAR(100) UNIQUE,
+    presence VARCHAR(20) NOT NULL DEFAULT 'OFFLINE',
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS servers (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    invite_code VARCHAR(50) NOT NULL UNIQUE,
+    icon_url VARCHAR(255),
+    owner_id BIGINT NOT NULL REFERENCES users(id),
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS server_members (
+    server_id BIGINT NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (server_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS channels (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    type VARCHAR(20) NOT NULL DEFAULT 'TEXT',
+    server_id BIGINT NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+    id BIGSERIAL PRIMARY KEY,
+    content TEXT,
+    sender_id BIGINT NOT NULL REFERENCES users(id),
+    channel_id BIGINT REFERENCES channels(id) ON DELETE CASCADE,
+    recipient_id BIGINT REFERENCES users(id),
+    parent_id BIGINT REFERENCES messages(id) ON DELETE SET NULL,
+    file_url VARCHAR(500),
+    file_name VARCHAR(255),
+    file_type VARCHAR(100),
+    edited BOOLEAN NOT NULL DEFAULT FALSE,
+    deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_channel_id ON messages(channel_id);
+CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_recipient_id ON messages(recipient_id);
+CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
+
+CREATE TABLE IF NOT EXISTS reactions (
+    id BIGSERIAL PRIMARY KEY,
+    emoji VARCHAR(20) NOT NULL,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    message_id BIGINT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (message_id, user_id, emoji)
+);
+
+CREATE TABLE IF NOT EXISTS friend_requests (
+    id BIGSERIAL PRIMARY KEY,
+    sender_id BIGINT NOT NULL REFERENCES users(id),
+    receiver_id BIGINT NOT NULL REFERENCES users(id),
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (sender_id, receiver_id)
+);

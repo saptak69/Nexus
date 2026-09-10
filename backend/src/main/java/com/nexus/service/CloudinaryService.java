@@ -22,4 +22,11 @@ public class CloudinaryService {
                 "resource_type", "auto"
         ));
     }
+
+    public Map<?, ?> uploadBytes(byte[] bytes, String filename) throws IOException {
+        return cloudinary.uploader().upload(bytes, ObjectUtils.asMap(
+                "public_id", filename,
+                "resource_type", "auto"
+        ));
+    }
 }

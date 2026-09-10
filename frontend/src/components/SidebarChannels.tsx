@@ -126,6 +126,8 @@ export const SidebarChannels: React.FC = () => {
   const filteredContacts = [...friends.filter((contact) =>
     contact.id !== user?.id && (
       contact.username.toLowerCase().includes(filterQuery.toLowerCase()) ||
+      contact.displayName?.toLowerCase().includes(filterQuery.toLowerCase()) ||
+      (contact.phoneNumber && contact.phoneNumber.includes(filterQuery)) ||
       contact.userTag?.toLowerCase().includes(filterQuery.toLowerCase())
     )
   )];
@@ -344,14 +346,12 @@ export const SidebarChannels: React.FC = () => {
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className={`text-xs font-mono font-black uppercase truncate ${
                           isSelected ? 'text-black' : 'text-zinc-100'
-                        }`}>{contact.username}</span>
-                        {contact.userTag && (
-                          <span className={`text-[8px] font-mono shrink-0 uppercase tracking-tight ${
-                            isSelected ? 'text-zinc-700' : 'text-zinc-500'
-                          }`}>
-                            @{contact.userTag.split('_')[0]}
-                          </span>
-                        )}
+                        }`}>{contact.displayName || contact.username}</span>
+                        <span className={`text-[8px] font-mono shrink-0 uppercase tracking-tight ${
+                          isSelected ? 'text-zinc-700' : 'text-zinc-500'
+                        }`}>
+                          @{contact.username}
+                        </span>
                       </div>
                       <span className={`text-[9px] font-mono truncate leading-none ${
                         isTyping 

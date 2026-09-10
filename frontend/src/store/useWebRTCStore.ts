@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { useChatStore } from './useChatStore';
-import { useAuthStore } from './useAuthStore';
+import { useAuthStore, API_BASE } from './useAuthStore';
 
 interface WebRTCState {
   // Streams
@@ -12,6 +12,7 @@ interface WebRTCState {
   peerConnections: Record<number, RTCPeerConnection>; // userId -> RTCPeerConnection
   roomId: string | null;
   inCall: boolean;
+  callStatus: 'IDLE' | 'RINGING' | 'CONNECTED' | 'DISCONNECTED';
   
   // Mute & Camera controls
   micMuted: boolean;
@@ -28,8 +29,11 @@ interface WebRTCState {
   
   // Call status
   incomingCall: { senderId: number; senderName: string; roomId: string } | null;
+  outgoingCall: { targetId: number; targetName: string; roomId: string } | null;
   
   // Actions
+  fetchIceConfiguration: () => Promise<RTCConfiguration>;
+  initiateCall: (targetUserId: number, targetUserName: string, video?: boolean) => Promise<void>;
   joinRoom: (roomId: string) => Promise<void>;
   leaveRoom: () => void;
   toggleMic: () => void;
@@ -42,15 +46,15 @@ interface WebRTCState {
   handleIncomingSignal: (senderId: number, signal: any) => Promise<void>;
   syncPeers: (activeUserIds: number[]) => void;
   setIncomingCall: (incomingCall: { senderId: number; senderName: string; roomId: string } | null) => void;
+  handleCallAnsweredElsewhere: () => void;
+  handleCallTimeout: () => void;
   acceptCall: () => Promise<void>;
   declineCall: () => void;
 }
 
-const ICE_SERVERS = {
+const DEFAULT_ICE_SERVERS: RTCConfiguration = {
   iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' }
+    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }
   ]
 };
 
@@ -58,6 +62,7 @@ export const useWebRTCStore = create<WebRTCState>((set, get) => {
   let audioContext: AudioContext | null = null;
   let analyser: AnalyserNode | null = null;
   let voiceDetectionInterval: any = null;
+  let cachedIceConfig: RTCConfiguration | null = null;
 
   // Active Speaker Detection
   const startSpeakerDetection = (stream: MediaStream) => {
@@ -114,6 +119,7 @@ export const useWebRTCStore = create<WebRTCState>((set, get) => {
     peerConnections: {},
     roomId: null,
     inCall: false,
+    callStatus: 'IDLE',
     micMuted: false,
     cameraOff: false,
     screenSharing: false,
@@ -124,17 +130,69 @@ export const useWebRTCStore = create<WebRTCState>((set, get) => {
     selectedVideoId: null,
     selectedAudioId: null,
     incomingCall: null,
+    outgoingCall: null,
+
+    fetchIceConfiguration: async () => {
+      if (cachedIceConfig) return cachedIceConfig;
+      const token = useAuthStore.getState().token;
+      if (!token) return DEFAULT_ICE_SERVERS;
+
+      try {
+        const res = await fetch(`${API_BASE}/webrtc/ice-servers`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.iceServers && data.iceServers.length > 0) {
+            cachedIceConfig = data;
+            return data;
+          }
+        }
+      } catch (err) {
+        console.warn('Unable to reach dynamic ICE server endpoint, falling back to STUN:', err);
+      }
+      return DEFAULT_ICE_SERVERS;
+    },
 
     setIncomingCall: (incomingCall) => {
       if (get().inCall && incomingCall) return;
       set({ incomingCall });
     },
 
+    handleCallAnsweredElsewhere: () => {
+      set({ incomingCall: null, outgoingCall: null });
+    },
+
+    handleCallTimeout: () => {
+      const { inCall, roomId } = get();
+      set({ incomingCall: null, outgoingCall: null, callStatus: 'IDLE' });
+      if (inCall && roomId?.startsWith('dm_')) {
+        get().leaveRoom();
+        alert('Call ended: No answer received within 30 seconds.');
+      }
+    },
+
+    initiateCall: async (targetUserId: number, targetUserName: string, video = true) => {
+      const currentUserId = useAuthStore.getState().user?.id;
+      if (!currentUserId) return;
+
+      const roomId = `dm_${Math.min(currentUserId, targetUserId)}_${Math.max(currentUserId, targetUserId)}`;
+      set({
+        outgoingCall: { targetId: targetUserId, targetName: targetUserName, roomId },
+        callStatus: 'RINGING',
+      });
+
+      await get().joinRoom(roomId);
+      if (!video) {
+        get().toggleCamera();
+      }
+    },
+
     acceptCall: async () => {
       const { incomingCall } = get();
       if (!incomingCall) return;
       const roomId = incomingCall.roomId;
-      set({ incomingCall: null });
+      set({ incomingCall: null, callStatus: 'CONNECTED' });
       await get().joinRoom(roomId);
     },
 
@@ -148,7 +206,7 @@ export const useWebRTCStore = create<WebRTCState>((set, get) => {
           roomId: incomingCall.roomId,
         }));
       }
-      set({ incomingCall: null });
+      set({ incomingCall: null, callStatus: 'IDLE' });
     },
 
     fetchDevices: async () => {
@@ -188,6 +246,7 @@ export const useWebRTCStore = create<WebRTCState>((set, get) => {
           localStream: stream,
           inCall: true,
           roomId,
+          callStatus: 'CONNECTED',
           micMuted: false,
           cameraOff: false,
           screenSharing: false,
@@ -240,6 +299,9 @@ export const useWebRTCStore = create<WebRTCState>((set, get) => {
         peerConnections: {},
         roomId: null,
         inCall: false,
+        callStatus: 'IDLE',
+        outgoingCall: null,
+        incomingCall: null,
         micMuted: false,
         cameraOff: false,
         screenSharing: false,
@@ -395,7 +457,16 @@ export const useWebRTCStore = create<WebRTCState>((set, get) => {
       if (signal.sdp && signal.type === 'offer') {
         // If we don't have a peer connection yet, initialize it
         if (!pc) {
-          pc = new RTCPeerConnection(ICE_SERVERS);
+          const iceConfig = await get().fetchIceConfiguration();
+          pc = new RTCPeerConnection(iceConfig);
+
+          pc.oniceconnectionstatechange = () => {
+            if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+              if (typeof (pc as any).restartIce === 'function') {
+                (pc as any).restartIce();
+              }
+            }
+          };
           
           // Add local tracks
           if (localStream) {
@@ -492,7 +563,16 @@ export const useWebRTCStore = create<WebRTCState>((set, get) => {
       // The other user (with larger userId) will receive the offer and respond with an answer.
       peers.forEach(async (peerId) => {
         if (!peerConnections[peerId] && currentUserId < peerId) {
-          const pc = new RTCPeerConnection(ICE_SERVERS);
+          const iceConfig = await get().fetchIceConfiguration();
+          const pc = new RTCPeerConnection(iceConfig);
+
+          pc.oniceconnectionstatechange = () => {
+            if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+              if (typeof (pc as any).restartIce === 'function') {
+                (pc as any).restartIce();
+              }
+            }
+          };
           
           if (localStream) {
             localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));

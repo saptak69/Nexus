@@ -29,5 +29,23 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     );
 
     @EntityGraph(attributePaths = {"sender", "channel", "recipient", "reactions", "parentMessage", "parentMessage.sender"})
+    @Query("SELECT m FROM Message m WHERE " +
+           "((m.sender.id = :user1Id AND m.recipient.id = :user2Id) OR " +
+           "(m.sender.id = :user2Id AND m.recipient.id = :user1Id)) AND " +
+           "m.id > :sinceId ORDER BY m.id ASC")
+    List<Message> findDirectMessagesSince(
+            @Param("user1Id") Long user1Id, 
+            @Param("user2Id") Long user2Id, 
+            @Param("sinceId") Long sinceId
+    );
+
+    @EntityGraph(attributePaths = {"sender", "channel", "recipient", "reactions", "parentMessage", "parentMessage.sender"})
+    @Query("SELECT m FROM Message m WHERE m.channel.id = :channelId AND m.id > :sinceId ORDER BY m.id ASC")
+    List<Message> findChannelMessagesSince(
+            @Param("channelId") Long channelId, 
+            @Param("sinceId") Long sinceId
+    );
+
+    @EntityGraph(attributePaths = {"sender", "channel", "recipient", "reactions", "parentMessage", "parentMessage.sender"})
     Optional<Message> findWithAssociationsById(Long id);
 }

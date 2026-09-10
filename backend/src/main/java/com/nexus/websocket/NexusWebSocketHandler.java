@@ -44,6 +44,7 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
 
     // Map: roomId (channel_id or custom dm call id) -> Set<userId> (for WebRTC and presence broadcasting in rooms)
     private final ConcurrentHashMap<String, CopyOnWriteArraySet<Long>> roomParticipants = new ConcurrentHashMap<>();
+    private final java.util.concurrent.ScheduledExecutorService callTimeoutScheduler = java.util.concurrent.Executors.newScheduledThreadPool(2);
 
     public NexusWebSocketHandler(JwtTokenProvider tokenProvider,
                                  UserService userService,
@@ -120,7 +121,7 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
 
         switch (type.toUpperCase()) {
             case "JOIN_ROOM":
-                handleJoinRoom(senderId, payload);
+                handleJoinRoom(session, senderId, payload);
                 break;
             case "LEAVE_ROOM":
                 handleLeaveRoom(senderId, payload);
@@ -129,7 +130,7 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
                 handleSignal(senderId, payload);
                 break;
             case "DECLINE_CALL":
-                handleDeclineCall(senderId, payload);
+                handleDeclineCall(session, senderId, payload);
                 break;
             case "TYPING":
                 handleTyping(senderId, payload);
@@ -194,7 +195,7 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
         return true;
     }
 
-    private void handleJoinRoom(Long userId, Map<String, Object> payload) {
+    private void handleJoinRoom(WebSocketSession session, Long userId, Map<String, Object> payload) {
         String roomId = (String) payload.get("roomId");
         if (roomId == null) return;
 
@@ -215,10 +216,6 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
                     Long id1 = Long.valueOf(parts[1]);
                     Long id2 = Long.valueOf(parts[2]);
                     if (!userId.equals(id1) && !userId.equals(id2)) {
-                        return;
-                    }
-                    Long partnerId = userId.equals(id1) ? id2 : id1;
-                    if (!isFriend(userId, partnerId)) {
                         return;
                     }
                 } catch (NumberFormatException e) {
@@ -243,14 +240,37 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
                     Long targetId = userId.equals(id1) ? id2 : id1;
 
                     CopyOnWriteArraySet<Long> participants = roomParticipants.get(roomId);
-                    if (participants != null && !participants.contains(targetId)) {
-                        User sender = userService.findById(userId).orElse(null);
-                        Map<String, Object> callInvite = new HashMap<>();
-                        callInvite.put("type", "INCOMING_CALL");
-                        callInvite.put("senderId", userId);
-                        callInvite.put("senderName", sender != null ? sender.getUsername() : "Someone");
-                        callInvite.put("roomId", roomId);
-                        sendToUser(targetId, callInvite);
+                    if (participants != null) {
+                        if (!participants.contains(targetId)) {
+                            // User is initiating the call
+                            User sender = userService.findById(userId).orElse(null);
+                            Map<String, Object> callInvite = new HashMap<>();
+                            callInvite.put("type", "INCOMING_CALL");
+                            callInvite.put("senderId", userId);
+                            callInvite.put("senderName", sender != null ? (sender.getDisplayName() != null ? sender.getDisplayName() : sender.getUsername()) : "Someone");
+                            callInvite.put("roomId", roomId);
+                            sendToUser(targetId, callInvite);
+
+                            // Schedule 30-second unanswered call timeout
+                            callTimeoutScheduler.schedule(() -> {
+                                CopyOnWriteArraySet<Long> currentParts = roomParticipants.get(roomId);
+                                if (currentParts != null && (!currentParts.contains(userId) || !currentParts.contains(targetId))) {
+                                    Map<String, Object> timeoutMsg = new HashMap<>();
+                                    timeoutMsg.put("type", "CALL_TIMEOUT");
+                                    timeoutMsg.put("roomId", roomId);
+                                    sendToUser(userId, timeoutMsg);
+                                    sendToUser(targetId, timeoutMsg);
+                                    roomParticipants.remove(roomId);
+                                    broadcastRoomUpdate(roomId);
+                                }
+                            }, 30, java.util.concurrent.TimeUnit.SECONDS);
+                        } else {
+                            // User is answering the call! Dismiss rings on other tabs of this user
+                            Map<String, Object> answeredElsewhere = new HashMap<>();
+                            answeredElsewhere.put("type", "CALL_ANSWERED_ELSEWHERE");
+                            answeredElsewhere.put("roomId", roomId);
+                            sendToUserExceptSession(userId, session, answeredElsewhere);
+                        }
                     }
                 } catch (NumberFormatException e) {
                     // Ignore
@@ -296,34 +316,31 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
         sendToUser(targetId, forward);
     }
 
-    private void handleDeclineCall(Long senderId, Map<String, Object> payload) {
+    private void handleDeclineCall(WebSocketSession session, Long senderId, Map<String, Object> payload) {
         Object targetIdObj = payload.get("targetId");
         if (targetIdObj == null) return;
 
         Long targetId = Long.valueOf(targetIdObj.toString());
-
         String roomId = (String) payload.get("roomId");
-        if (roomId != null) {
-            CopyOnWriteArraySet<Long> participants = roomParticipants.get(roomId);
-            if (participants == null || !participants.contains(senderId) || !participants.contains(targetId)) {
-                if (!isFriend(senderId, targetId)) {
-                    return;
-                }
-            }
-        } else {
-            if (!isFriend(senderId, targetId)) {
-                return;
-            }
-        }
 
         User sender = userService.findById(senderId).orElse(null);
         Map<String, Object> forward = new HashMap<>();
-        forward.put("type", "DECLINE_CALL");
+        forward.put("type", "CALL_DECLINED");
         forward.put("senderId", senderId);
         forward.put("senderName", sender != null ? sender.getUsername() : "User");
-        forward.put("roomId", payload.get("roomId"));
-        
+        forward.put("roomId", roomId);
         sendToUser(targetId, forward);
+
+        // Also dismiss ringing on any other open tabs for this user
+        Map<String, Object> answeredElsewhere = new HashMap<>();
+        answeredElsewhere.put("type", "CALL_ANSWERED_ELSEWHERE");
+        answeredElsewhere.put("roomId", roomId);
+        sendToUserExceptSession(senderId, session, answeredElsewhere);
+
+        if (roomId != null) {
+            roomParticipants.remove(roomId);
+            broadcastRoomUpdate(roomId);
+        }
     }
 
     private void handleTyping(Long senderId, Map<String, Object> payload) {
@@ -526,6 +543,17 @@ public class NexusWebSocketHandler extends TextWebSocketHandler {
         if (sessions != null) {
             for (WebSocketSession session : sessions) {
                 if (session.isOpen()) {
+                    sendJson(session, obj);
+                }
+            }
+        }
+    }
+
+    private void sendToUserExceptSession(Long userId, WebSocketSession excludeSession, Object obj) {
+        CopyOnWriteArraySet<WebSocketSession> sessions = userSessions.get(userId);
+        if (sessions != null) {
+            for (WebSocketSession session : sessions) {
+                if (session.isOpen() && (excludeSession == null || !session.getId().equals(excludeSession.getId()))) {
                     sendJson(session, obj);
                 }
             }

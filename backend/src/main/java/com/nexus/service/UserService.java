@@ -107,16 +107,14 @@ public class UserService {
     }
 
     public List<User> searchUsers(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return List.of();
+        }
         String cleanedQuery = query.trim();
         if (cleanedQuery.startsWith("@")) {
             cleanedQuery = cleanedQuery.substring(1).trim();
         }
-        
-        Optional<User> userOpt = userRepository.findByUserTagIgnoreCase(cleanedQuery);
-        if (userOpt.isPresent()) {
-            return List.of(userOpt.get());
-        }
-        return List.of();
+        return userRepository.searchUsers(cleanedQuery);
     }
 
     public List<User> findAll() {

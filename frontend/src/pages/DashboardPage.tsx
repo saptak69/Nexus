@@ -8,7 +8,7 @@ import { MessageSquare, Radio, Heart, Cpu, Shield } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
   const { connectSocket, disconnectSocket, fetchFriends, activeChannelId, activeDmUserId, activeMode } = useChatStore();
-  const { inCall, leaveRoom, incomingCall, acceptCall, declineCall } = useWebRTCStore();
+  const { inCall, leaveRoom, incomingCall, outgoingCall, acceptCall, declineCall } = useWebRTCStore();
 
   useEffect(() => {
     connectSocket();
@@ -110,6 +110,30 @@ export const DashboardPage: React.FC = () => {
                 ACCEPT
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Stark Outgoing Call Ringing Dialog */}
+      {outgoingCall && !inCall && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-in fade-in duration-75">
+          <div className="w-full max-w-xs p-6 rounded-none bg-black border-2 border-white shadow-none flex flex-col items-center text-center gap-5 animate-scale-in">
+            <div className="w-10 h-10 border border-white flex items-center justify-center text-white animate-pulse">
+              <Radio className="w-5 h-5" />
+            </div>
+            <div className="space-y-1.5 leading-tight">
+              <h3 className="text-xs font-mono font-black uppercase tracking-widest text-white">CALLING_OPERATOR</h3>
+              <p className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider mt-1">
+                RINGING <span className="font-bold text-white">@{outgoingCall.targetName.toUpperCase()}</span>...
+              </p>
+              <p className="text-[9px] font-mono text-zinc-600 uppercase mt-0.5">AWAITING PEER LINK (30S TIMEOUT)</p>
+            </div>
+            <button
+              onClick={leaveRoom}
+              className="w-full py-2 rounded-none bg-zinc-950 border border-red-500 text-red-500 hover:bg-red-500 hover:text-white font-mono font-black text-[10px] uppercase transition duration-75 btn-interactive"
+            >
+              CANCEL CALL
+            </button>
           </div>
         </div>
       )}

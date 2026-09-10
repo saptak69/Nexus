@@ -4,7 +4,14 @@ import type { Message } from '../store/useChatStore';
 import { useAuthStore, API_BASE } from '../store/useAuthStore';
 import type { User } from '../store/useAuthStore';
 import { useWebRTCStore } from '../store/useWebRTCStore';
-import { Paperclip, Smile, Edit2, Trash2, CornerUpLeft, X, Video, Image, FileText, Check, Clock, ArrowLeft } from 'lucide-react';
+import { Paperclip, Smile, Edit2, Trash2, CornerUpLeft, X, Video, Image, FileText, Check, Clock, ArrowLeft, Phone, Download } from 'lucide-react';
+
+const formatFileSize = (bytes?: number) => {
+  if (!bytes || bytes <= 0) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
 
 const getOptimizedImageUrl = (url?: string, width = 600) => {
   if (!url) return '';
@@ -23,7 +30,6 @@ export const ChatArea: React.FC = () => {
   } = useChatStore();
 
   const { user, token } = useAuthStore();
-  const { joinRoom } = useWebRTCStore();
 
   // References
   const messageEndRef = useRef<HTMLDivElement>(null);
@@ -40,7 +46,7 @@ export const ChatArea: React.FC = () => {
   
   // File Upload states
   const [uploading, setUploading] = useState(false);
-  const [attachedFile, setAttachedFile] = useState<{ url: string; name: string; type: string } | null>(null);
+  const [attachedFile, setAttachedFile] = useState<{ url: string; name: string; type: string; size?: number } | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
   // Scroll to bottom
@@ -130,6 +136,10 @@ export const ChatArea: React.FC = () => {
 
   const uploadFile = async (file: File) => {
     if (!token) return;
+    if (file.size > 100 * 1024 * 1024) {
+      alert("PAYLOAD REJECTED: File size exceeds maximum allowed 100MB limit.");
+      return;
+    }
     setUploading(true);
     
     const formData = new FormData();
@@ -148,10 +158,15 @@ export const ChatArea: React.FC = () => {
           url: data.fileUrl,
           name: data.fileName,
           type: data.fileType,
+          size: data.fileSize || file.size,
         });
+      } else {
+        const errText = await response.text();
+        alert(`UPLOAD FAILED: ${errText || 'Server rejected file'}`);
       }
     } catch (e) {
       console.error("File upload failed", e);
+      alert("UPLOAD FAILED: Unable to reach server.");
     } finally {
       setUploading(false);
     }
@@ -178,6 +193,7 @@ export const ChatArea: React.FC = () => {
       fileUrl: attachedFile?.url,
       fileName: attachedFile?.name,
       fileType: attachedFile?.type,
+      fileSize: attachedFile?.size,
     });
 
     setInputText('');
@@ -239,13 +255,6 @@ export const ChatArea: React.FC = () => {
     }
   };
 
-  const handleDMCall = () => {
-    if (activeDmUserId) {
-      const roomId = `dm_${Math.min(user!.id, activeDmUserId)}_${Math.max(user!.id, activeDmUserId)}`;
-      joinRoom(roomId);
-    }
-  };
-
   let title = '';
   let subTitle = '';
   let showCallButton = false;
@@ -257,8 +266,8 @@ export const ChatArea: React.FC = () => {
     subTitle = activeChannel ? `${activeChannel.type}_CHANNEL` : '';
   } else {
     activeFriend = fetchedFriend;
-    title = activeFriend ? activeFriend.username : 'SYNCING...';
-    subTitle = activeFriend?.statusMessage || (activeFriend ? activeFriend.presence.toLowerCase() : '');
+    title = activeFriend ? (activeFriend.displayName || activeFriend.username) : 'SYNCING...';
+    subTitle = activeFriend ? `@${activeFriend.username}${activeFriend.statusMessage ? ' • ' + activeFriend.statusMessage : ''}` : '';
     showCallButton = !!activeFriend;
   }
 
@@ -345,17 +354,27 @@ export const ChatArea: React.FC = () => {
             </div>
           </div>
 
-          {/* Video call button is fully visible on both mobile and desktop */}
+          {/* Call buttons are fully visible on both mobile and desktop */}
           <div className="flex items-center gap-1.5 shrink-0">
-            {showCallButton && (
-              <button
-                onClick={handleDMCall}
-                className="px-3 py-1.5 text-[10px] font-mono font-black uppercase text-white bg-black border border-white hover:bg-white hover:text-black rounded-none kinematic-transition flex items-center gap-1.5 shrink-0"
-                title="Establish Video Stream"
-              >
-                <Video className="w-3.5 h-3.5" />
-                <span>[CALL]</span>
-              </button>
+            {showCallButton && activeFriend && (
+              <>
+                <button
+                  onClick={() => useWebRTCStore.getState().initiateCall(activeFriend!.id, activeFriend!.displayName || activeFriend!.username, false)}
+                  className="px-2.5 py-1.5 text-[10px] font-mono font-black uppercase text-white bg-black border border-zinc-750 hover:border-white hover:bg-white hover:text-black rounded-none kinematic-transition flex items-center gap-1.5 shrink-0"
+                  title="Establish Voice Call"
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">[VOICE]</span>
+                </button>
+                <button
+                  onClick={() => useWebRTCStore.getState().initiateCall(activeFriend!.id, activeFriend!.displayName || activeFriend!.username, true)}
+                  className="px-2.5 py-1.5 text-[10px] font-mono font-black uppercase text-white bg-black border border-white hover:bg-white hover:text-black rounded-none kinematic-transition flex items-center gap-1.5 shrink-0"
+                  title="Establish Video Stream"
+                >
+                  <Video className="w-3.5 h-3.5" />
+                  <span>[VIDEO]</span>
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -480,14 +499,30 @@ export const ChatArea: React.FC = () => {
                             href={msg.fileUrl} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className={`flex items-center gap-2 p-2 rounded-none border text-[10px] font-mono uppercase tracking-wider ${
-                              isMe ? 'bg-black/5 border-black/20 text-zinc-900' : 'bg-white/5 border-white/15 text-white'
+                            download={msg.fileName}
+                            className={`flex items-center justify-between gap-3 p-3 rounded-none border text-[10px] font-mono uppercase tracking-wider transition ${
+                              isMe 
+                                ? 'bg-black/5 border-black/20 text-zinc-900 hover:bg-black/10' 
+                                : 'bg-white/5 border-white/15 text-white hover:bg-white/10'
                             }`}
                           >
-                            <FileText className="w-4 h-4 shrink-0" />
-                            <div className="flex flex-col min-w-0">
-                              <span className="truncate font-black">{msg.fileName}</span>
-                              <span className="text-[8px] opacity-60 mt-0.5">{msg.fileType || 'DATA_STREAM'}</span>
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                              <div className={`p-2 border rounded-none shrink-0 ${isMe ? 'border-black/30 bg-black/10' : 'border-white/20 bg-white/10'}`}>
+                                <FileText className="w-4 h-4" />
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="truncate font-black text-xs">{msg.fileName}</span>
+                                <div className="flex items-center gap-1.5 opacity-60 text-[8px] mt-0.5">
+                                  <span>{msg.fileType || 'DOCUMENT'}</span>
+                                  {msg.fileSize && <span>• {formatFileSize(msg.fileSize)}</span>}
+                                </div>
+                              </div>
+                            </div>
+                            <div className={`px-2 py-1 text-[8px] font-mono font-bold border flex items-center gap-1 shrink-0 ${
+                              isMe ? 'border-black text-black' : 'border-white text-white'
+                            }`}>
+                              <Download className="w-3 h-3" />
+                              <span>GET</span>
                             </div>
                           </a>
                         )}
@@ -618,6 +653,9 @@ export const ChatArea: React.FC = () => {
                 <FileText className="w-3.5 h-3.5 text-zinc-400" />
               )}
               <span className="text-white truncate font-bold uppercase">{attachedFile.name}</span>
+              {attachedFile.size && (
+                <span className="text-zinc-500 font-mono text-[8px]">({formatFileSize(attachedFile.size)})</span>
+              )}
             </div>
             <button onClick={() => setAttachedFile(null)}>
               <X className="w-3.5 h-3.5 hover:text-red-500 transition" />
@@ -654,6 +692,7 @@ export const ChatArea: React.FC = () => {
             type="file"
             ref={fileInputRef}
             onChange={handleFileSelect}
+            accept="*/*"
             className="hidden"
           />
 

@@ -30,12 +30,14 @@ public class MessageController {
 
     private final MessageService messageService;
     private final UserService userService;
-    private final CloudinaryService cloudinaryService;
+    private final com.nexus.service.LocalStorageService localStorageService;
 
-    public MessageController(MessageService messageService, UserService userService, CloudinaryService cloudinaryService) {
+    public MessageController(MessageService messageService, 
+                             UserService userService, 
+                             com.nexus.service.LocalStorageService localStorageService) {
         this.messageService = messageService;
         this.userService = userService;
-        this.cloudinaryService = cloudinaryService;
+        this.localStorageService = localStorageService;
     }
 
     private User getAuthenticatedUser() {
@@ -123,6 +125,26 @@ public class MessageController {
         }
     }
 
+    @GetMapping("/sync")
+    public ResponseEntity<?> syncMessages(
+            @RequestParam Long sinceId,
+            @RequestParam(required = false) Long partnerId,
+            @RequestParam(required = false) Long channelId) {
+        try {
+            User current = getAuthenticatedUser();
+            if (partnerId != null) {
+                List<Message> messages = messageService.getDirectMessagesSince(current.getId(), partnerId, sinceId);
+                return ResponseEntity.ok(messages);
+            } else if (channelId != null) {
+                List<Message> messages = messageService.getChannelMessagesSince(channelId, sinceId);
+                return ResponseEntity.ok(messages);
+            }
+            return ResponseEntity.badRequest().body("Either partnerId or channelId must be provided");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     @PostMapping("/upload")
     public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file) {
         try {
@@ -130,44 +152,33 @@ public class MessageController {
                 return ResponseEntity.badRequest().body("File is empty");
             }
 
-            // 1. Enforce a 20MB file size limit
-            if (file.getSize() > 20 * 1024 * 1024) {
-                return ResponseEntity.badRequest().body("File size exceeds the limit of 20MB.");
+            // Enforce a 100MB universal file size limit
+            if (file.getSize() > 100L * 1024 * 1024) {
+                return ResponseEntity.badRequest().body("File size exceeds the limit of 100MB.");
             }
 
-            // 2. Validate file extension (block execution files)
+            // Block raw dangerous executables from upload
             String originalFileName = file.getOriginalFilename();
             if (originalFileName != null) {
                 String lower = originalFileName.toLowerCase();
-                if (lower.endsWith(".exe") || lower.endsWith(".bat") || lower.endsWith(".sh") || 
-                    lower.endsWith(".cmd") || lower.endsWith(".js") || lower.endsWith(".jar") || 
+                if (lower.endsWith(".exe") || lower.endsWith(".bat") || lower.endsWith(".cmd") || 
                     lower.endsWith(".msi") || lower.endsWith(".vbs") || lower.endsWith(".com") || 
                     lower.endsWith(".scr")) {
-                    return ResponseEntity.badRequest().body("Unsupported file type: Executable files are blocked for security reasons.");
+                    return ResponseEntity.badRequest().body("Unsupported file type: Native binary executables are blocked for security reasons.");
                 }
             }
 
-            // 3. Validate MIME type
-            String contentType = file.getContentType();
-            if (contentType != null && (
-                contentType.contains("javascript") || 
-                contentType.contains("x-msdownload") || 
-                contentType.contains("x-sh") || 
-                contentType.contains("x-bat"))) {
-                return ResponseEntity.badRequest().body("Unsupported file type: Executable content is blocked.");
-            }
+            com.nexus.service.StorageService.StoredFile stored = localStorageService.uploadTemp(file);
 
-            Map<?, ?> uploadResult = cloudinaryService.upload(file);
-            String fileUrl = (String) uploadResult.get("secure_url");
-
-            Map<String, String> response = new HashMap<>();
-            response.put("fileUrl", fileUrl);
-            response.put("fileName", originalFileName);
-            response.put("fileType", file.getContentType());
+            Map<String, Object> response = new HashMap<>();
+            response.put("fileUrl", stored.fileUrl());
+            response.put("fileName", stored.fileName());
+            response.put("fileType", stored.fileType());
+            response.put("fileSize", stored.fileSize());
 
             return ResponseEntity.ok(response);
-        } catch (IOException e) {
-            return ResponseEntity.status(500).body("Could not store file on Cloudinary. Error: " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("File upload failed: " + e.getMessage());
         }
     }
 }

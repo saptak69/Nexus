@@ -39,6 +39,7 @@ export interface Message {
   fileUrl?: string;
   fileName?: string;
   fileType?: string;
+  fileSize?: number;
   edited: boolean;
   deleted: boolean;
   reactions: Reaction[];
@@ -77,17 +78,19 @@ interface ChatState {
   joinServer: (inviteCode: string) => Promise<boolean>;
   leaveServer: (serverId: number) => Promise<boolean>;
   
+  // Channels
   fetchChannels: (serverId: number) => Promise<void>;
   createChannel: (serverId: number, name: string, type: 'TEXT' | 'VIDEO') => Promise<boolean>;
   deleteChannel: (channelId: number) => Promise<boolean>;
   
   fetchFriends: () => Promise<void>;
   fetchMessages: (page?: number) => Promise<void>;
+  syncMessages: () => Promise<void>;
   
   // Socket managers
   connectSocket: () => void;
   disconnectSocket: () => void;
-  sendMessage: (content: string, options?: { parentId?: number; fileUrl?: string; fileName?: string; fileType?: string }) => void;
+  sendMessage: (content: string, options?: { parentId?: number; fileUrl?: string; fileName?: string; fileType?: string; fileSize?: number }) => void;
   sendTyping: (isTyping: boolean) => void;
 }
 
@@ -370,6 +373,43 @@ export const useChatStore = create<ChatState>((set, get) => {
       }
     },
 
+    syncMessages: async () => {
+      const token = useAuthStore.getState().token;
+      if (!token) return;
+
+      const { activeMode, activeChannelId, activeDmUserId, messages } = get();
+      const realMessages = messages.filter((m) => m.id > 0);
+      const sinceId = realMessages.length > 0 ? Math.max(...realMessages.map((m) => m.id)) : 0;
+
+      let url = '';
+      if (activeMode === 'SERVER' && activeChannelId) {
+        url = `${API_BASE}/messages/sync?sinceId=${sinceId}&channelId=${activeChannelId}`;
+      } else if (activeMode === 'DM' && activeDmUserId) {
+        url = `${API_BASE}/messages/sync?sinceId=${sinceId}&dmUserId=${activeDmUserId}`;
+      } else {
+        return;
+      }
+
+      try {
+        const response = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (response.ok) {
+          const newMessages: Message[] = await response.json();
+          if (newMessages.length > 0) {
+            set((state) => {
+              const existingIds = new Set(state.messages.map((m) => m.id));
+              const toAdd = newMessages.filter((m) => !existingIds.has(m.id));
+              return { messages: [...state.messages, ...toAdd] };
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error syncing missed messages', err);
+      }
+    },
+
     connectSocket: () => {
       const token = useAuthStore.getState().token;
       if (!token) return;
@@ -377,19 +417,26 @@ export const useChatStore = create<ChatState>((set, get) => {
       // Avoid double connection
       if (get().socket) return;
 
-      const isLocal = typeof window !== 'undefined' && (
-        window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1' ||
-        window.location.hostname.startsWith('192.168.') ||
-        window.location.hostname.startsWith('10.') ||
-        window.location.hostname.startsWith('172.')
-      );
+      const getWsUrl = () => {
+        if (import.meta.env.VITE_WS_URL) return `${import.meta.env.VITE_WS_URL}`;
+        if (typeof window !== 'undefined') {
+          const isLocal = (
+            window.location.hostname === 'localhost' ||
+            window.location.hostname === '127.0.0.1' ||
+            window.location.hostname.startsWith('192.168.') ||
+            window.location.hostname.startsWith('10.') ||
+            window.location.hostname.startsWith('172.')
+          );
+          if (isLocal) {
+            return `ws://${window.location.hostname}:8080/ws`;
+          }
+          const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          return `${proto}//${window.location.host}/ws`;
+        }
+        return 'ws://localhost:8080/ws';
+      };
 
-      const wsUrl = import.meta.env.VITE_WS_URL
-        ? `${import.meta.env.VITE_WS_URL}`
-        : (isLocal
-          ? `ws://${window.location.hostname}:8080/ws`
-          : `wss://nexus-production-ce6a.up.railway.app/ws`);
+      const wsUrl = getWsUrl();
 
       // Clear any pending reconnect timers
       if (reconnectTimer) {
@@ -415,6 +462,9 @@ export const useChatStore = create<ChatState>((set, get) => {
           const roomId = `dm_${Math.min(user.id, activeDmUserId)}_${Math.max(user.id, activeDmUserId)}`;
           socket.send(JSON.stringify({ type: 'JOIN_ROOM', roomId }));
         }
+
+        // Catch up on any messages missed during disconnect
+        get().syncMessages();
       };
 
       socket.onmessage = (event) => {
@@ -488,12 +538,24 @@ export const useChatStore = create<ChatState>((set, get) => {
         } else if (type === 'INCOMING_CALL') {
           const { senderId, senderName, roomId } = data;
           useWebRTCStore.getState().setIncomingCall({ senderId, senderName, roomId });
-        } else if (type === 'DECLINE_CALL') {
+        } else if (type === 'DECLINE_CALL' || type === 'CALL_DECLINED') {
           const { roomId, senderName } = data;
-          const webrtcRoomId = useWebRTCStore.getState().roomId;
-          if (webrtcRoomId === roomId) {
-            useWebRTCStore.getState().leaveRoom();
-            alert(`${senderName || 'The other user'} declined your call.`);
+          const rtc = useWebRTCStore.getState();
+          if (rtc.roomId === roomId || rtc.outgoingCall?.roomId === roomId) {
+            rtc.leaveRoom();
+            alert(`${senderName || 'The other user'} declined the call.`);
+          }
+        } else if (type === 'CALL_TIMEOUT') {
+          const { roomId } = data;
+          const rtc = useWebRTCStore.getState();
+          if (rtc.roomId === roomId || rtc.incomingCall?.roomId === roomId || rtc.outgoingCall?.roomId === roomId) {
+            rtc.handleCallTimeout();
+          }
+        } else if (type === 'CALL_ANSWERED_ELSEWHERE') {
+          const { roomId } = data;
+          const rtc = useWebRTCStore.getState();
+          if (rtc.incomingCall?.roomId === roomId) {
+            rtc.handleCallAnsweredElsewhere();
           }
         } else if (type === 'PRESENCE') {
           // Update the single friend status in Zustand store locally rather than refetching the whole list
@@ -550,6 +612,7 @@ export const useChatStore = create<ChatState>((set, get) => {
         fileUrl: options?.fileUrl,
         fileName: options?.fileName,
         fileType: options?.fileType,
+        fileSize: options?.fileSize,
         clientId,
       };
 
@@ -574,6 +637,7 @@ export const useChatStore = create<ChatState>((set, get) => {
         fileUrl: options?.fileUrl,
         fileName: options?.fileName,
         fileType: options?.fileType,
+        fileSize: options?.fileSize,
         edited: false,
         deleted: false,
         reactions: [],
