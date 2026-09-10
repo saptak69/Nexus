@@ -18,9 +18,9 @@ public class LocalStorageService implements StorageService {
 
     private static final Logger log = LoggerFactory.getLogger(LocalStorageService.class);
 
-    private final Path uploadRoot;
-    private final Path tempDir;
-    private final Path permanentDir;
+    private Path uploadRoot;
+    private Path tempDir;
+    private Path permanentDir;
     private final Tika tika = new Tika();
     private final CloudinaryService cloudinaryService;
 
@@ -28,15 +28,26 @@ public class LocalStorageService implements StorageService {
     private String storageType;
 
     public LocalStorageService(
-            @Value("${nexus.upload.dir:./uploads}") String uploadDirProperty,
+            @Value("${nexus.upload.dir:#{null}}") String uploadDirProperty,
             CloudinaryService cloudinaryService) {
         this.cloudinaryService = cloudinaryService;
 
-        Path rawPath = Paths.get(uploadDirProperty);
-        if (!rawPath.isAbsolute()) {
-            this.uploadRoot = Paths.get(System.getProperty("user.dir")).resolve(rawPath).normalize().toAbsolutePath();
+        // Default: use /tmp/uploads on containers (Render, Docker) where /app is read-only,
+        // or ./uploads for local development
+        if (uploadDirProperty == null || uploadDirProperty.isBlank()) {
+            String userDir = System.getProperty("user.dir", ".");
+            if (userDir.startsWith("/app")) {
+                this.uploadRoot = Paths.get("/tmp/uploads");
+            } else {
+                this.uploadRoot = Paths.get(userDir, "uploads").normalize().toAbsolutePath();
+            }
         } else {
-            this.uploadRoot = rawPath.normalize().toAbsolutePath();
+            Path rawPath = Paths.get(uploadDirProperty);
+            if (!rawPath.isAbsolute()) {
+                this.uploadRoot = Paths.get(System.getProperty("user.dir", ".")).resolve(rawPath).normalize().toAbsolutePath();
+            } else {
+                this.uploadRoot = rawPath.normalize().toAbsolutePath();
+            }
         }
 
         this.tempDir = this.uploadRoot.resolve("temp");
@@ -49,8 +60,19 @@ public class LocalStorageService implements StorageService {
             Files.createDirectories(tempDir);
             Files.createDirectories(permanentDir);
             log.info("Initialized local storage at: {}", uploadRoot);
-        } catch (IOException e) {
-            throw new RuntimeException("Could not initialize upload directories: " + e.getMessage(), e);
+        } catch (Exception e) {
+            log.warn("Could not create upload dirs at {}, trying temp directory fallback: {}", uploadRoot, e.getMessage());
+            try {
+                Path fallback = Paths.get(System.getProperty("java.io.tmpdir", "/tmp"), "uploads");
+                this.uploadRoot = fallback;
+                this.tempDir = fallback.resolve("temp");
+                this.permanentDir = fallback.resolve("permanent");
+                Files.createDirectories(this.tempDir);
+                Files.createDirectories(this.permanentDir);
+                log.info("Initialized local storage at fallback: {}", fallback);
+            } catch (Exception fallbackEx) {
+                throw new RuntimeException("Could not initialize upload directories: " + uploadRoot + " or fallback", fallbackEx);
+            }
         }
     }
 
