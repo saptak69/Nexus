@@ -113,8 +113,16 @@ export const AuthPage: React.FC = () => {
 
   const getFullTarget = () => {
     if (authMethod === 'PHONE') {
-      const cleanedNum = rawPhoneNumber.trim().replace(/\D/g, '');
-      return `${countryCode}${cleanedNum}`;
+      const trimmed = rawPhoneNumber.trim();
+      if (trimmed.startsWith('+')) {
+        return trimmed.replace(/[^\d+]/g, '');
+      }
+      const cleanedDigits = trimmed.replace(/\D/g, '');
+      const codeDigits = countryCode.replace(/\D/g, '');
+      if (cleanedDigits.startsWith(codeDigits) && cleanedDigits.length > codeDigits.length + 7) {
+        return `+${cleanedDigits}`;
+      }
+      return `${countryCode}${cleanedDigits}`;
     }
     return email.trim().toLowerCase();
   };

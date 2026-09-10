@@ -101,7 +101,7 @@ public class OtpService {
                 // If no leading +, test international parsing
                 String defaultRegion = trimmed.startsWith("+") ? null : "US";
                 Phonenumber.PhoneNumber parsedNumber = phoneUtil.parseAndKeepRawInput(trimmed, defaultRegion);
-                if (!phoneUtil.isValidNumber(parsedNumber)) {
+                if (!phoneUtil.isPossibleNumber(parsedNumber)) {
                     throw new BadRequestException("Invalid or non-dialable phone number.");
                 }
                 String e164 = phoneUtil.format(parsedNumber, PhoneNumberUtil.PhoneNumberFormat.E164);
